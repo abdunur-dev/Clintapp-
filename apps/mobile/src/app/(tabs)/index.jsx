@@ -5,22 +5,17 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  Dimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import {
-  Menu,
-  Crown,
   Moon,
   Church,
   BookOpen,
-  Languages,
   Star,
   Feather,
-  TrendingUp,
   ChevronRight,
-  Bell,
-  Sparkles,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -29,7 +24,10 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
-import HamburgerMenu from "../../components/HamburgerMenu";
+import { CartButton } from "../../components/CartButton";
+import { FadeInView, ScaleInView, SlideUpView } from "../../components/animations";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const categories = [
   { id: "islamic", title: "እስልምና", subtitle: "Islamic", icon: Moon },
@@ -110,7 +108,8 @@ export default function HomeScreen() {
   const router = useRouter();
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [activeCategory, setActiveCategory] = useState("islamic");
-  const [menuOpen, setMenuOpen] = useState(false);
+
+  const handleCartPress = () => router.push("/cart");
 
   if (!fontsLoaded) return null;
 
@@ -133,24 +132,6 @@ export default function HomeScreen() {
           paddingBottom: SPACING.lg,
         }}
       >
-        <TouchableOpacity
-          onPress={() => setMenuOpen(true)}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: COLORS.card,
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-            ...SHADOWS.card,
-          }}
-        >
-          <Menu color={COLORS.gold} size={20} strokeWidth={2} />
-        </TouchableOpacity>
-
         <View style={{ alignItems: "center" }}>
           <Text
             style={{
@@ -175,59 +156,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={{
-              width: 42,
-              height: 42,
-              borderRadius: 21,
-              backgroundColor: COLORS.card,
-              justifyContent: "center",
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: COLORS.cardBorder,
-            }}
-          >
-            <Bell color={COLORS.mutedLight} size={18} />
-            <View
-              style={{
-                position: "absolute",
-                top: 10,
-                right: 10,
-                width: 8,
-                height: 8,
-                borderRadius: 4,
-                backgroundColor: COLORS.gold,
-                borderWidth: 1.5,
-                borderColor: COLORS.card,
-              }}
-            />
-          </TouchableOpacity>
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={{
-              backgroundColor: COLORS.card,
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: RADIUS.pill,
-              flexDirection: "row",
-              alignItems: "center",
-              borderWidth: 1,
-              borderColor: COLORS.gold + "60",
-            }}
-          >
-            <Crown color={COLORS.gold} size={14} />
-            <Text
-              style={{
-                color: COLORS.gold,
-                marginLeft: 4,
-                fontSize: 12,
-                fontFamily: "CrimsonPro_700Bold",
-              }}
-            >
-              Lv.3
-            </Text>
-          </TouchableOpacity>
+          <CartButton onPress={handleCartPress} />
         </View>
       </View>
 
@@ -237,40 +166,21 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Greeting */}
+        <FadeInView delay={100}>
         <View
           style={{
             paddingHorizontal: SPACING.xl,
-            marginBottom: SPACING.xxl,
+            paddingTop: SPACING.sm,
           }}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              gap: 6,
-              marginBottom: 6,
-            }}
-          >
-            <Sparkles color={COLORS.gold} size={14} />
-            <Text
-              style={{
-                fontFamily: "CrimsonPro_400Regular",
-                fontSize: 14,
-                color: COLORS.muted,
-              }}
-            >
-              Good evening, Reader
-            </Text>
-          </View>
           <Text
             style={{
               fontFamily: "CrimsonPro_700Bold",
-              fontSize: 28,
+              fontSize: 32,
               color: COLORS.white,
-              marginTop: 2,
             }}
           >
-            Choose Your Path
+            Welcome
           </Text>
           <Text
             style={{
@@ -278,107 +188,114 @@ export default function HomeScreen() {
               fontSize: 13,
               color: COLORS.gold,
               letterSpacing: 2,
-              marginTop: 2,
+              marginTop: 4,
             }}
           >
-            ምረጥ
+            እንኳን ደህና መጣህ
           </Text>
         </View>
+        </FadeInView>
 
         {/* Category Grid */}
-        <View
-          style={{
-            paddingHorizontal: SPACING.xl,
-            flexDirection: "row",
-            flexWrap: "wrap",
-            justifyContent: "space-between",
-          }}
-        >
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat.id}
-              onPress={() => setActiveCategory(cat.id)}
-              activeOpacity={0.8}
-              style={{
-                width: "48%",
-                backgroundColor:
-                  activeCategory === cat.id ? "#1E1F4A" : COLORS.card,
-                borderRadius: RADIUS.lg,
-                padding: SPACING.xl,
-                marginBottom: 14,
-                alignItems: "center",
-                borderWidth: 1.5,
-                borderColor:
-                  activeCategory === cat.id ? COLORS.gold : COLORS.cardBorder,
-                ...SHADOWS.card,
-              }}
-            >
-              <View
+        <View style={{ paddingHorizontal: SPACING.xl, marginTop: SPACING.xl }}>
+          <Text
+            style={{
+              fontFamily: "CrimsonPro_700Bold",
+              fontSize: 18,
+              color: COLORS.white,
+              marginBottom: SPACING.md,
+            }}
+          >
+            Browse
+          </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              flexWrap: "wrap",
+              gap: 12,
+            }}
+          >
+            {categories.map((cat, i) => {
+              const isActive = activeCategory === cat.id;
+              const cardWidth = (SCREEN_WIDTH - SPACING.xl * 2 - 12) / 2;
+              return (
+              <ScaleInView key={cat.id} delay={200 + i * 80} style={{ width: cardWidth }}>
+              <TouchableOpacity
+                onPress={() => setActiveCategory(cat.id)}
+                activeOpacity={0.8}
                 style={{
-                  width: 56,
-                  height: 56,
-                  borderRadius: 28,
-                  backgroundColor:
-                    activeCategory === cat.id ? "#2A2B5A" : COLORS.accent,
-                  justifyContent: "center",
+                  backgroundColor: isActive ? "#1E1F4A" : COLORS.card,
+                  borderRadius: RADIUS.lg,
+                  paddingVertical: SPACING.xl,
+                  paddingHorizontal: SPACING.md,
                   alignItems: "center",
-                  marginBottom: SPACING.md,
-                  borderWidth: 1,
-                  borderColor:
-                    activeCategory === cat.id
-                      ? COLORS.gold + "80"
-                      : COLORS.cardBorder,
+                  borderWidth: 1.5,
+                  borderColor: isActive ? COLORS.gold : COLORS.cardBorder,
+                  ...SHADOWS.card,
                 }}
               >
-                <cat.icon
-                  color={COLORS.gold}
-                  size={26}
-                  strokeWidth={1.5}
-                />
-              </View>
-              <Text
-                style={{
-                  fontFamily: "CrimsonPro_700Bold",
-                  fontSize: 18,
-                  color: COLORS.white,
-                  marginBottom: 2,
-                }}
-              >
-                {cat.title}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "CrimsonPro_400Regular",
-                  fontSize: 11,
-                  color: COLORS.muted,
-                  letterSpacing: 1,
-                }}
-              >
-                {cat.subtitle.toUpperCase()}
-              </Text>
-              {activeCategory === cat.id && (
-                <View style={{ position: "absolute", top: 12, right: 12 }}>
-                  <Star color={COLORS.gold} size={12} fill={COLORS.gold} />
+                <View
+                  style={{
+                    width: 52,
+                    height: 52,
+                    borderRadius: 26,
+                    backgroundColor: isActive ? "#2A2B5A" : COLORS.accent,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginBottom: SPACING.sm,
+                    borderWidth: 1,
+                    borderColor: isActive ? COLORS.gold + "80" : COLORS.cardBorder,
+                  }}
+                >
+                  <cat.icon color={COLORS.gold} size={24} strokeWidth={1.5} />
                 </View>
-              )}
-            </TouchableOpacity>
-          ))}
+                <Text
+                  style={{
+                    fontFamily: "CrimsonPro_700Bold",
+                    fontSize: 16,
+                    color: COLORS.white,
+                  }}
+                >
+                  {cat.title}
+                </Text>
+                <Text
+                  style={{
+                    fontFamily: "CrimsonPro_400Regular",
+                    fontSize: 10,
+                    color: COLORS.muted,
+                    letterSpacing: 1,
+                    marginTop: 2,
+                  }}
+                >
+                  {cat.subtitle.toUpperCase()}
+                </Text>
+                {isActive && (
+                  <View style={{ position: "absolute", top: 8, right: 12 }}>
+                    <Star color={COLORS.gold} size={10} fill={COLORS.gold} />
+                  </View>
+                )}
+              </TouchableOpacity>
+              </ScaleInView>
+              );
+            })}
+          </View>
         </View>
 
         {/* Continue Reading */}
-        <View style={{ paddingHorizontal: SPACING.xl, marginTop: 8 }}>
+        <SlideUpView delay={300}>
+        <View style={{ paddingHorizontal: SPACING.xl, marginTop: SPACING.md }}>
           <View
             style={{
               flexDirection: "row",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: SPACING.lg,
+              marginBottom: SPACING.md,
             }}
           >
             <Text
               style={{
                 fontFamily: "CrimsonPro_700Bold",
-                fontSize: 20,
+                fontSize: 18,
                 color: COLORS.white,
               }}
             >
@@ -411,9 +328,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {featured.map((book) => (
+          {featured.map((book, i) => (
+            <FadeInView key={book.id} delay={400 + i * 100}>
             <TouchableOpacity
-              key={book.id}
               onPress={() => router.push(`/book/${book.id}`)}
               activeOpacity={0.8}
               style={{
@@ -441,11 +358,7 @@ export default function HomeScreen() {
                   borderColor: COLORS.gold + "30",
                 }}
               >
-                <book.icon
-                  color={COLORS.gold}
-                  size={24}
-                  strokeWidth={1.5}
-                />
+                <book.icon color={COLORS.gold} size={24} strokeWidth={1.5} />
               </LinearGradient>
 
               <View style={{ flex: 1 }}>
@@ -511,131 +424,18 @@ export default function HomeScreen() {
               <ChevronRight
                 color={COLORS.muted}
                 size={18}
-                style={{ marginLeft: SPACING.sm}}
+                style={{ marginLeft: SPACING.sm }}
               />
             </TouchableOpacity>
+            </FadeInView>
           ))}
         </View>
+        </SlideUpView>
 
-        {/* AI Translation Hint */}
-        <View
-          style={{
-            marginHorizontal: SPACING.xl,
-            marginTop: SPACING.lg,
-            padding: SPACING.lg,
-            backgroundColor: "#1A1B38",
-            borderRadius: RADIUS.lg,
-            borderStyle: "dashed",
-            borderWidth: 1.5,
-            borderColor: COLORS.gold + "80",
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              marginBottom: 6,
-            }}
-          >
-            <Languages color={COLORS.gold} size={16} />
-            <Text
-              style={{
-                color: COLORS.gold,
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 14,
-                marginLeft: SPACING.sm,
-              }}
-            >
-              AI Reading Companion
-            </Text>
-          </View>
-          <Text
-            style={{
-              color: COLORS.mutedLight,
-              fontSize: 13,
-              fontFamily: "CrimsonPro_400Regular",
-              lineHeight: 20,
-            }}
-          >
-            Tap any Amharic word to translate it into English, and ask our AI
-            companion what it means.
-          </Text>
-        </View>
 
-        {/* Stats Row */}
-        <View
-          style={{
-            paddingHorizontal: SPACING.xl,
-            marginTop: SPACING.xl,
-            flexDirection: "row",
-            gap: SPACING.md,
-          }}
-        >
-          {[
-            { label: "Books Read", value: "12", icon: BookOpen },
-            { label: "Reading Streak", value: "7 Days", icon: TrendingUp },
-            { label: "Top Category", value: "Islamic", icon: Star },
-          ].map((stat, i) => (
-            <View
-              key={i}
-              style={{
-                flex: 1,
-                backgroundColor: COLORS.card,
-                borderRadius: RADIUS.md,
-                padding: SPACING.lg,
-                alignItems: "center",
-                borderWidth: 1,
-                borderColor: COLORS.cardBorder,
-              }}
-            >
-              <stat.icon color={COLORS.gold} size={18} strokeWidth={1.5} />
-              <Text
-                style={{
-                  fontFamily: "CrimsonPro_700Bold",
-                  fontSize: 16,
-                  color: COLORS.white,
-                  marginTop: 6,
-                }}
-              >
-                {stat.value}
-              </Text>
-              <Text
-                style={{
-                  fontFamily: "CrimsonPro_400Regular",
-                  fontSize: 10,
-                  color: COLORS.muted,
-                  textAlign: "center",
-                  marginTop: 2,
-                }}
-              >
-                {stat.label}
-              </Text>
-            </View>
-          ))}
-        </View>
       </ScrollView>
 
-      {/* FAB */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        onPress={() => router.push("/search")}
-        style={{
-          position: "absolute",
-          right: SPACING.xl,
-          bottom: 100,
-          width: 58,
-          height: 58,
-          borderRadius: 29,
-          backgroundColor: COLORS.gold,
-          justifyContent: "center",
-          alignItems: "center",
-          ...SHADOWS.gold,
-        }}
-      >
-        <Languages color={COLORS.bg} size={24} strokeWidth={2} />
-      </TouchableOpacity>
 
-      <HamburgerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

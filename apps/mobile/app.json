@@ -1,6 +1,7 @@
 {
   "expo": {
-    "name": "Anything mobile app",
+    "name": "Clintapp",
+    "slug": "clintapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -53,8 +54,7 @@
       ],
       "expo-font",
       "expo-secure-store",
-      "expo-web-browser",
-      "@sentry/react-native/expo"
+      "expo-web-browser"
     ],
     "web": {
       "bundler": "metro",

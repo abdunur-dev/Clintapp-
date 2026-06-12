@@ -15,6 +15,19 @@ export const COLORS = {
   success: "#4A8C5C",
   danger: "#E05555",
   overlay: "rgba(11, 12, 26, 0.85)",
+
+  parchment: "#F5E6C8",
+  parchmentDark: "#E8D5A8",
+  parchmentEdge: "#C4A060",
+  manuscriptBg: "#1A1530",
+  manuscriptBorder: "#6A5ACD",
+  sealRed: "#8B0000",
+  inkBrown: "#2A1A0A",
+  inkGold: "#B8860B",
+  gemBlue: "#1E3A5F",
+  gemRuby: "#722F37",
+  gemEmerald: "#2E5C3E",
+  ornamentBorder: "#8B7355",
 };
 
 export const SPACING = {
@@ -50,5 +63,19 @@ export const SHADOWS = {
     shadowOpacity: 0.4,
     shadowRadius: 10,
     elevation: 6,
+  },
+  manuscript: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  parchment: {
+    shadowColor: COLORS.parchmentEdge,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 3,
   },
 };

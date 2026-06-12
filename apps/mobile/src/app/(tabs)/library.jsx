@@ -19,7 +19,6 @@ import {
   Download,
   Check,
   SlidersHorizontal,
-  Menu as MenuIcon,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -28,121 +27,10 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
-import HamburgerMenu from "../../components/HamburgerMenu";
 
 const TABS = ["All", "Islamic", "Christianity", "Philosophy", "Fiction"];
 
-const BOOKS = [
-  {
-    id: 1,
-    title: "The Holy Quran",
-    titleAm: "ቅዱስ ቁርአን",
-    author: "Allah's Revelation",
-    category: "Islamic",
-    pages: 604,
-    downloaded: true,
-    rating: 5,
-    icon: Moon,
-  },
-  {
-    id: 2,
-    title: "Tafsir Ibn Kathir",
-    titleAm: "ተፍሲር",
-    author: "Ibn Kathir",
-    category: "Islamic",
-    pages: 890,
-    downloaded: false,
-    rating: 4.8,
-    icon: Moon,
-  },
-  {
-    id: 3,
-    title: "Sahih Al-Bukhari",
-    titleAm: "ሐዲስ",
-    author: "Al-Bukhari",
-    category: "Islamic",
-    pages: 1200,
-    downloaded: true,
-    rating: 4.9,
-    icon: Moon,
-  },
-  {
-    id: 4,
-    title: "The Holy Bible",
-    titleAm: "ቅዱስ መጽሐፍ",
-    author: "Holy Scripture",
-    category: "Christianity",
-    pages: 1189,
-    downloaded: true,
-    rating: 5,
-    icon: Church,
-  },
-  {
-    id: 5,
-    title: "Book of Enoch",
-    titleAm: "የሄኖክ መጽሐፍ",
-    author: "Ancient Text",
-    category: "Christianity",
-    pages: 340,
-    downloaded: false,
-    rating: 4.6,
-    icon: Church,
-  },
-  {
-    id: 6,
-    title: "Meditations",
-    titleAm: "ሥነ አዕምሮ",
-    author: "Marcus Aurelius",
-    category: "Philosophy",
-    pages: 254,
-    downloaded: true,
-    rating: 4.7,
-    icon: Feather,
-  },
-  {
-    id: 7,
-    title: "The Republic",
-    titleAm: "ሪፐብሊክ",
-    author: "Plato",
-    category: "Philosophy",
-    pages: 416,
-    downloaded: false,
-    rating: 4.5,
-    icon: Feather,
-  },
-  {
-    id: 8,
-    title: "Thus Spoke Zarathustra",
-    titleAm: "ዛራቱስትራ",
-    author: "Nietzsche",
-    pages: 352,
-    downloaded: false,
-    rating: 4.3,
-    icon: Feather,
-  },
-  {
-    id: 9,
-    title: "Fiqr Eske Mekabir",
-    titleAm: "ፍቅር እስከ መቃብር",
-    author: "Haddis Alemayehu",
-    category: "Fiction",
-    pages: 448,
-    downloaded: true,
-    rating: 4.9,
-    icon: BookOpen,
-  },
-  {
-    id: 10,
-    title: "Oromay",
-    titleAm: "ኦሮማይ",
-    author: "Berhane Zerihun",
-    category: "Fiction",
-    pages: 310,
-    downloaded: false,
-    rating: 4.7,
-    icon: BookOpen,
-  },
-];
+const BOOKS = [];
 
 function StarField() {
   const stars = Array.from({ length: 20 }, (_, i) => ({
@@ -332,9 +220,7 @@ export default function LibraryScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState("All");
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
-  const [savedIds, setSavedIds] = useState(new Set([1, 4, 6, 9]));
-  const [menuOpen, setMenuOpen] = useState(false);
-
+  const [savedIds, setSavedIds] = useState(new Set());
   if (!fontsLoaded) return null;
 
   const filtered =
@@ -363,29 +249,8 @@ export default function LibraryScreen() {
           paddingTop: insets.top + 10,
           paddingHorizontal: SPACING.xl,
           paddingBottom: SPACING.lg,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
         }}
       >
-        <TouchableOpacity
-          onPress={() => setMenuOpen(true)}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: COLORS.card,
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-            marginRight: SPACING.md,
-          }}
-        >
-          <MenuIcon color={COLORS.gold} size={20} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
           <Text
             style={{
               fontFamily: "CrimsonPro_400Regular",
@@ -415,7 +280,6 @@ export default function LibraryScreen() {
           >
             ቤተ መጻሕፍት
           </Text>
-        </View>
       </View>
 
       {/* Stats bar */}
@@ -569,7 +433,6 @@ export default function LibraryScreen() {
         ))}
       </ScrollView>
 
-      <HamburgerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

@@ -1,0 +1,54 @@
+{
+  "books": [
+    {
+      "id": "1",
+      "title": "The Holy Quran",
+      "titleAm": "ቅዱስ ቁርአን",
+      "author": "Translation",
+      "category": "Islamic",
+      "pages": 604,
+      "rating": 5,
+      "price": 299,
+      "description": "The Holy Qur'an in Amharic translation. A guide for those who are conscious of Allah, with verses that bring peace and guidance to the soul.",
+      "coverColor": "#4A8C5C",
+      "iconName": "Moon",
+      "chapters": 114
+    },
+    {
+      "id": "2",
+      "title": "The Bible — Amharic",
+      "titleAm": "ቅዱስ መጽሐፍ",
+      "author": "Holy Scripture",
+      "category": "Christianity",
+      "pages": 1189,
+      "rating": 5,
+      "price": 349,
+      "description": "The Holy Bible in Amharic, containing the Old and New Testaments.",
+      "coverColor": "#5C6A9A",
+      "iconName": "Church",
+      "chapters": 66
+    },
+    {
+      "id": "3",
+      "title": "Meditations",
+      "titleAm": "ሥነ አዕምሮ",
+      "author": "Marcus Aurelius",
+      "category": "Philosophy",
+      "pages": 254,
+      "rating": 4.7,
+      "price": 199,
+      "description": "Personal writings of the Roman Emperor Marcus Aurelius, reflecting on Stoic philosophy.",
+      "coverColor": "#8C6A3A",
+      "iconName": "Feather",
+      "chapters": 12
+    }
+  ],
+  "categories": [
+    { "id": "islamic", "title": "እስልምና", "subtitle": "Islamic", "iconName": "Moon" },
+    { "id": "christianity", "title": "ክርስትና", "subtitle": "Christianity", "iconName": "Church" },
+    { "id": "philosophy", "title": "ፍልስፍና", "subtitle": "Philosophy", "iconName": "Feather" },
+    { "id": "fiction", "title": "ልብ ወለድ", "subtitle": "Fiction", "iconName": "BookOpen" }
+  ],
+  "users": [],
+  "orders": []
+}

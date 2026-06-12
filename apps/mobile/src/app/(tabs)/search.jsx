@@ -18,7 +18,6 @@ import {
   Star,
   X,
   TrendingUp,
-  Menu as MenuIcon,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -27,100 +26,12 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
-import HamburgerMenu from "../../components/HamburgerMenu";
 
-const ALL_BOOKS = [
-  {
-    id: 1,
-    title: "The Holy Quran",
-    titleAm: "ቅዱስ ቁርአን",
-    author: "Allah's Revelation",
-    category: "Islamic",
-    rating: 5,
-    icon: Moon,
-  },
-  {
-    id: 2,
-    title: "Tafsir Ibn Kathir",
-    titleAm: "ተፍሲር",
-    author: "Ibn Kathir",
-    category: "Islamic",
-    rating: 4.8,
-    icon: Moon,
-  },
-  {
-    id: 3,
-    title: "Sahih Al-Bukhari",
-    titleAm: "ሐዲስ",
-    author: "Al-Bukhari",
-    category: "Islamic",
-    rating: 4.9,
-    icon: Moon,
-  },
-  {
-    id: 4,
-    title: "The Holy Bible",
-    titleAm: "ቅዱስ መጽሐፍ",
-    author: "Holy Scripture",
-    category: "Christianity",
-    rating: 5,
-    icon: Church,
-  },
-  {
-    id: 5,
-    title: "Book of Enoch",
-    titleAm: "የሄኖክ መጽሐፍ",
-    author: "Ancient Text",
-    category: "Christianity",
-    rating: 4.6,
-    icon: Church,
-  },
-  {
-    id: 6,
-    title: "Meditations",
-    titleAm: "ሥነ አዕምሮ",
-    author: "Marcus Aurelius",
-    category: "Philosophy",
-    rating: 4.7,
-    icon: Feather,
-  },
-  {
-    id: 7,
-    title: "The Republic",
-    titleAm: "ሪፐብሊክ",
-    author: "Plato",
-    category: "Philosophy",
-    rating: 4.5,
-    icon: Feather,
-  },
-  {
-    id: 8,
-    title: "Fiqr Eske Mekabir",
-    titleAm: "ፍቅር እስከ መቃብር",
-    author: "Haddis Alemayehu",
-    category: "Fiction",
-    rating: 4.9,
-    icon: BookOpen,
-  },
-  {
-    id: 9,
-    title: "Oromay",
-    titleAm: "ኦሮማይ",
-    author: "Berhane Zerihun",
-    category: "Fiction",
-    rating: 4.7,
-    icon: BookOpen,
-  },
-];
+const ALL_BOOKS = [];
 
-const TRENDING = ["Quran", "Meditations", "ፍቅር", "Bible", "Plato"];
+const TRENDING = [];
 
-const POPULAR_CATEGORIES = [
-  { label: "Islamic", icon: Moon, count: 3 },
-  { label: "Christianity", icon: Church, count: 2 },
-  { label: "Philosophy", icon: Feather, count: 3 },
-  { label: "Fiction", icon: BookOpen, count: 2 },
-];
+const POPULAR_CATEGORIES = [];
 
 function StarField() {
   const stars = Array.from({ length: 16 }, (_, i) => ({
@@ -155,7 +66,6 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [menuOpen, setMenuOpen] = useState(false);
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
 
   if (!fontsLoaded) return null;
@@ -185,29 +95,8 @@ export default function SearchScreen() {
           paddingTop: insets.top + 10,
           paddingHorizontal: SPACING.xl,
           paddingBottom: SPACING.lg,
-          flexDirection: "row",
-          justifyContent: "space-between",
-          alignItems: "flex-end",
         }}
       >
-        <TouchableOpacity
-          onPress={() => setMenuOpen(true)}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: COLORS.card,
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-            marginRight: SPACING.md,
-          }}
-        >
-          <MenuIcon color={COLORS.gold} size={20} strokeWidth={2} />
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
           <Text
             style={{
               fontFamily: "CrimsonPro_400Regular",
@@ -237,7 +126,6 @@ export default function SearchScreen() {
           >
             ፈልግ
           </Text>
-        </View>
       </View>
 
       {/* Search Input */}
@@ -637,7 +525,6 @@ export default function SearchScreen() {
         )}
       </ScrollView>
 
-      <HamburgerMenu visible={menuOpen} onClose={() => setMenuOpen(false)} />
     </View>
   );
 }

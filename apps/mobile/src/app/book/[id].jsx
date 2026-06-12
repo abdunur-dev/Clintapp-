@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Share,
+  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -25,6 +27,8 @@ import {
   Moon as MoonIcon,
   Highlighter,
   MessageCircle,
+  Plus,
+  Check,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -33,6 +37,11 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
+import { CartButton } from "../../components/CartButton";
+import { useCartStore } from "../../stores/cartStore";
+import { useReaderStore } from "../../stores/readerStore";
+import ManuscriptReader from "../../components/ManuscriptReader";
+import { FadeInView, ScaleInView, ScaleButton } from "../../components/animations";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
@@ -93,12 +102,64 @@ export default function BookDetailScreen() {
   const { id } = useLocalSearchParams();
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [saved, setSaved] = useState(false);
-  const [fontSize, setFontSize] = useState(0);
+  const [fontLevel, setFontLevel] = useState(1);
   const [theme, setTheme] = useState(0);
+  const [highlighted, setHighlighted] = useState(false);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const { addItem, getItem } = useCartStore();
+  const { bookmarks, toggleBookmark } = useReaderStore();
+  const isBookmarked = bookmarks.some((b) => b.bookId === String(id));
+
+  const fontSizes = [13, 15, 18];
+  const fontSize = fontSizes[fontLevel];
+
+  const handleAddToCart = useCallback(() => {
+    addItem({
+      bookId: String(id || 1),
+      title: BOOKS_DATA[id]?.title || BOOKS_DATA[1].title,
+      titleAm: BOOKS_DATA[id]?.titleAm || BOOKS_DATA[1].titleAm,
+      author: BOOKS_DATA[id]?.author || BOOKS_DATA[1].author,
+      price: 299,
+      coverColor: BOOKS_DATA[id]?.color || BOOKS_DATA[1].color,
+      iconName: (BOOKS_DATA[id]?.icon || BOOKS_DATA[1].icon).displayName || 'BookOpen',
+      category: BOOKS_DATA[id]?.category || BOOKS_DATA[1].category,
+    });
+  }, [id, addItem]);
+
+  const handleShare = useCallback(() => {
+    Share.share({
+      message: `${BOOKS_DATA[id]?.title || BOOKS_DATA[1].title} — ${BOOKS_DATA[id]?.titleAm || BOOKS_DATA[1].titleAm}\n\n${BOOKS_DATA[id]?.description || BOOKS_DATA[1].description}\n\nRead more on ንባብ ቤት`,
+      title: BOOKS_DATA[id]?.title || BOOKS_DATA[1].title,
+    });
+  }, [id]);
+
+  const handleToggleFont = useCallback(() => {
+    setFontLevel((prev) => (prev + 1) % 3);
+  }, []);
+
+  const handleToggleTheme = useCallback(() => {
+    setTheme((prev) => (prev + 1) % 3);
+  }, []);
+
+  const handleToggleHighlight = useCallback(() => {
+    setHighlighted((prev) => !prev);
+  }, []);
+
+  const handleToggleBookmark = useCallback(() => {
+    const b = BOOKS_DATA[id] || BOOKS_DATA[1];
+    toggleBookmark({
+      bookId: String(id),
+      verseNumber: Math.round(b.pages * (b.progress || 0)),
+      chapterNumber: 1,
+      label: b.title,
+    });
+    Alert.alert(isBookmarked ? "Removed" : "Bookmarked", isBookmarked ? "Bookmark removed" : "Added to your bookmarks");
+  }, [id, isBookmarked, toggleBookmark]);
 
   if (!fontsLoaded) return null;
 
   const book = BOOKS_DATA[id] || BOOKS_DATA[1];
+  const isInCart = getItem(String(id));
   const Icon = book.icon;
   const themes = [
     { bg: COLORS.bg, text: COLORS.white, label: "Dark" },
@@ -115,6 +176,7 @@ export default function BookDetailScreen() {
       />
 
       {/* Hero Header */}
+      <FadeInView>
       <View
         style={{
           paddingTop: insets.top + 10,
@@ -125,25 +187,25 @@ export default function BookDetailScreen() {
           alignItems: "center",
         }}
       >
-        <TouchableOpacity
-          onPress={() => router.back()}
-          activeOpacity={0.7}
-          style={{
-            width: 42,
-            height: 42,
-            borderRadius: 21,
-            backgroundColor: COLORS.card,
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-          }}
-        >
-          <ArrowLeft color={COLORS.gold} size={20} strokeWidth={2} />
-        </TouchableOpacity>
+        <ScaleButton onPress={() => router.back()}>
+          <View
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 21,
+              backgroundColor: COLORS.card,
+              justifyContent: "center",
+              alignItems: "center",
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+            }}
+          >
+            <ArrowLeft color={COLORS.gold} size={20} strokeWidth={2} />
+          </View>
+        </ScaleButton>
         <View style={{ flexDirection: "row", gap: 10 }}>
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <ScaleButton onPress={handleShare}>
+          <View
             style={{
               width: 42,
               height: 42,
@@ -156,10 +218,10 @@ export default function BookDetailScreen() {
             }}
           >
             <Share2 color={COLORS.mutedLight} size={18} />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => setSaved(!saved)}
-            activeOpacity={0.7}
+          </View>
+          </ScaleButton>
+          <ScaleButton onPress={() => setSaved(!saved)}>
+          <View
             style={{
               width: 42,
               height: 42,
@@ -177,9 +239,12 @@ export default function BookDetailScreen() {
               fill={saved ? COLORS.gold : "none"}
               strokeWidth={2}
             />
-          </TouchableOpacity>
+          </View>
+          </ScaleButton>
+          <CartButton onPress={() => router.push("/cart")} />
         </View>
       </View>
+      </FadeInView>
 
       <ScrollView
         style={{ flex: 1 }}
@@ -187,6 +252,7 @@ export default function BookDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Book Cover */}
+        <ScaleInView delay={100}>
         <View
           style={{
             alignItems: "center",
@@ -240,8 +306,10 @@ export default function BookDetailScreen() {
             </View>
           </LinearGradient>
         </View>
+        </ScaleInView>
 
         {/* Book Info */}
+        <FadeInView delay={200}>
         <View
           style={{
             paddingHorizontal: SPACING.xl,
@@ -313,75 +381,10 @@ export default function BookDetailScreen() {
             </Text>
           </View>
         </View>
-
-        {/* Progress */}
-        <View
-          style={{
-            marginHorizontal: SPACING.xl,
-            padding: SPACING.lg,
-            backgroundColor: COLORS.card,
-            borderRadius: RADIUS.lg,
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-            marginBottom: SPACING.lg,
-          }}
-        >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              marginBottom: 8,
-            }}
-          >
-            <Text
-              style={{
-                color: COLORS.muted,
-                fontFamily: "CrimsonPro_400Regular",
-                fontSize: 12,
-              }}
-            >
-              Your progress
-            </Text>
-            <Text
-              style={{
-                color: COLORS.gold,
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 12,
-              }}
-            >
-              {Math.round(book.progress * 100)}% complete
-            </Text>
-          </View>
-          <View
-            style={{
-              height: 6,
-              backgroundColor: COLORS.accent,
-              borderRadius: 3,
-              overflow: "hidden",
-            }}
-          >
-            <View
-              style={{
-                width: `${book.progress * 100}%`,
-                height: "100%",
-                backgroundColor: COLORS.gold,
-                borderRadius: 3,
-              }}
-            />
-          </View>
-          <Text
-            style={{
-              color: COLORS.mutedLight,
-              fontFamily: "CrimsonPro_400Regular",
-              fontSize: 12,
-              marginTop: 6,
-            }}
-          >
-            Page {Math.round(book.pages * book.progress)} of {book.pages}
-          </Text>
-        </View>
+        </FadeInView>
 
         {/* Description */}
+        <FadeInView delay={400}>
         <View
           style={{
             marginHorizontal: SPACING.xl,
@@ -409,8 +412,10 @@ export default function BookDetailScreen() {
             {book.description}
           </Text>
         </View>
+        </FadeInView>
 
         {/* Reading Tools */}
+        <FadeInView delay={500}>
         <View
           style={{
             marginHorizontal: SPACING.xl,
@@ -434,51 +439,170 @@ export default function BookDetailScreen() {
               marginBottom: SPACING.md,
             }}
           >
-            {[
-              { icon: Type, label: "Font Size" },
-              { icon: theme === 0 ? Sun : MoonIcon, label: "Theme" },
-              { icon: Highlighter, label: "Highlight" },
-              { icon: Bookmark, label: "Bookmark" },
-            ].map((tool, i) => (
-              <TouchableOpacity
-                key={i}
-                activeOpacity={0.7}
+            <ScaleButton onPress={handleToggleFont} style={{ flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: COLORS.card,
+                borderRadius: RADIUS.md,
+                padding: SPACING.md,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: COLORS.cardBorder,
+              }}
+            >
+              <Type color={COLORS.gold} size={18} strokeWidth={1.5} />
+              <Text
                 style={{
-                  flex: 1,
-                  backgroundColor: COLORS.card,
-                  borderRadius: RADIUS.md,
-                  padding: SPACING.md,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: COLORS.cardBorder,
+                  color: COLORS.muted,
+                  fontSize: 10,
+                  marginTop: 4,
+                  fontFamily: "CrimsonPro_400Regular",
                 }}
               >
-                <tool.icon color={COLORS.gold} size={18} strokeWidth={1.5} />
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 10,
-                    marginTop: 4,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  {tool.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                Font
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.goldDim,
+                  fontSize: 8,
+                  marginTop: 1,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                {["S", "M", "L"][fontLevel]}
+              </Text>
+            </View>
+            </ScaleButton>
+            <ScaleButton onPress={handleToggleTheme} style={{ flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: COLORS.card,
+                borderRadius: RADIUS.md,
+                padding: SPACING.md,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: COLORS.cardBorder,
+              }}
+            >
+              {theme === 0 ? (
+                <Sun color={COLORS.gold} size={18} strokeWidth={1.5} />
+              ) : (
+                <MoonIcon color={COLORS.gold} size={18} strokeWidth={1.5} />
+              )}
+              <Text
+                style={{
+                  color: COLORS.muted,
+                  fontSize: 10,
+                  marginTop: 4,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                Theme
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.goldDim,
+                  fontSize: 8,
+                  marginTop: 1,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                {["Dark", "Sepia", "Light"][theme]}
+              </Text>
+            </View>
+            </ScaleButton>
+            <ScaleButton onPress={handleToggleHighlight} style={{ flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: highlighted ? COLORS.gold + "22" : COLORS.card,
+                borderRadius: RADIUS.md,
+                padding: SPACING.md,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: highlighted ? COLORS.gold : COLORS.cardBorder,
+              }}
+            >
+              <Highlighter
+                color={COLORS.gold}
+                size={18}
+                strokeWidth={1.5}
+              />
+              <Text
+                style={{
+                  color: COLORS.muted,
+                  fontSize: 10,
+                  marginTop: 4,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                Highlight
+              </Text>
+              <Text
+                style={{
+                  color: highlighted ? COLORS.gold : COLORS.goldDim,
+                  fontSize: 8,
+                  marginTop: 1,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                {highlighted ? "On" : "Off"}
+              </Text>
+            </View>
+            </ScaleButton>
+            <ScaleButton onPress={handleToggleBookmark} style={{ flex: 1 }}>
+            <View
+              style={{
+                backgroundColor: isBookmarked ? COLORS.gold + "22" : COLORS.card,
+                borderRadius: RADIUS.md,
+                padding: SPACING.md,
+                alignItems: "center",
+                borderWidth: 1,
+                borderColor: isBookmarked ? COLORS.gold : COLORS.cardBorder,
+              }}
+            >
+              <Bookmark
+                color={COLORS.gold}
+                size={18}
+                strokeWidth={1.5}
+                fill={isBookmarked ? COLORS.gold : "none"}
+              />
+              <Text
+                style={{
+                  color: COLORS.muted,
+                  fontSize: 10,
+                  marginTop: 4,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                Bookmark
+              </Text>
+              <Text
+                style={{
+                  color: isBookmarked ? COLORS.gold : COLORS.goldDim,
+                  fontSize: 8,
+                  marginTop: 1,
+                  fontFamily: "CrimsonPro_400Regular",
+                }}
+              >
+                {isBookmarked ? "Saved" : "Add"}
+              </Text>
+            </View>
+            </ScaleButton>
           </View>
         </View>
+        </FadeInView>
 
         {/* Sample */}
+        <FadeInView delay={600}>
         <View
           style={{
             marginHorizontal: SPACING.xl,
             padding: SPACING.lg,
-            backgroundColor: "#1A1B38",
+            backgroundColor: currentTheme.bg,
             borderRadius: RADIUS.lg,
             borderStyle: "dashed",
             borderWidth: 1.5,
-            borderColor: COLORS.gold + "60",
+            borderColor: highlighted ? COLORS.gold : COLORS.gold + "60",
             marginBottom: SPACING.lg,
           }}
         >
@@ -486,33 +610,64 @@ export default function BookDetailScreen() {
             style={{
               flexDirection: "row",
               alignItems: "center",
+              justifyContent: "space-between",
               marginBottom: 10,
             }}
           >
-            <MessageCircle color={COLORS.gold} size={14} />
-            <Text
-              style={{
-                color: COLORS.gold,
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 13,
-                marginLeft: 6,
-              }}
-            >
-              Preview
-            </Text>
+            <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <MessageCircle color={COLORS.gold} size={14} />
+              <Text
+                style={{
+                  color: COLORS.gold,
+                  fontFamily: "CrimsonPro_700Bold",
+                  fontSize: 13,
+                  marginLeft: 6,
+                }}
+              >
+                Preview
+              </Text>
+            </View>
+            {highlighted && (
+              <View
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                  backgroundColor: COLORS.gold + "22",
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: RADIUS.pill,
+                }}
+              >
+                <Check color={COLORS.gold} size={10} strokeWidth={2.5} />
+                <Text
+                  style={{
+                    color: COLORS.gold,
+                    fontFamily: "CrimsonPro_700Bold",
+                    fontSize: 9,
+                  }}
+                >
+                  Highlighted
+                </Text>
+              </View>
+            )}
           </View>
           <Text
             style={{
-              color: COLORS.mutedLight,
+              color: currentTheme.text,
               fontFamily: "CrimsonPro_400Regular",
-              fontSize: 15,
-              lineHeight: 24,
+              fontSize: fontSize,
+              lineHeight: fontSize * 1.6,
               fontStyle: "italic",
+              backgroundColor: highlighted ? COLORS.gold + "18" : "transparent",
+              paddingHorizontal: highlighted ? 4 : 0,
+              borderRadius: 2,
             }}
           >
             "{book.sample}"
           </Text>
         </View>
+        </FadeInView>
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -525,42 +680,25 @@ export default function BookDetailScreen() {
           paddingHorizontal: SPACING.xl,
           paddingTop: SPACING.md,
           paddingBottom: insets.bottom + SPACING.lg,
-          backgroundColor: COLORS.bg,
+          backgroundColor: COLORS.bgElevated,
           borderTopWidth: 1,
           borderTopColor: COLORS.cardBorder,
-          flexDirection: "row",
-          gap: SPACING.md,
+          gap: SPACING.sm,
         }}
       >
+        {/* Main CTA */}
         <TouchableOpacity
-          activeOpacity={0.8}
+          activeOpacity={0.85}
+          onPress={() => setReaderOpen(true)}
           style={{
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: COLORS.card,
-            justifyContent: "center",
-            alignItems: "center",
-            borderWidth: 1,
-            borderColor: COLORS.cardBorder,
-          }}
-        >
-          <Download color={COLORS.gold} size={20} strokeWidth={1.8} />
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={() => {
-            // Start reading
-          }}
-          style={{
-            flex: 1,
-            height: 56,
-            borderRadius: 28,
+            width: "100%",
+            height: 54,
+            borderRadius: RADIUS.md,
             backgroundColor: COLORS.gold,
             justifyContent: "center",
             alignItems: "center",
             flexDirection: "row",
-            gap: 8,
+            gap: 10,
             ...SHADOWS.gold,
           }}
         >
@@ -569,14 +707,89 @@ export default function BookDetailScreen() {
             style={{
               color: COLORS.bg,
               fontFamily: "CrimsonPro_700Bold",
-              fontSize: 16,
+              fontSize: 17,
               letterSpacing: 0.5,
             }}
           >
             {book.progress > 0 ? "Continue Reading" : "Start Reading"}
           </Text>
         </TouchableOpacity>
+
+        {/* Secondary actions */}
+        <View
+          style={{
+            flexDirection: "row",
+            gap: SPACING.md,
+          }}
+        >
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: RADIUS.md,
+              backgroundColor: COLORS.card,
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 6,
+              borderWidth: 1,
+              borderColor: COLORS.cardBorder,
+            }}
+          >
+            <Download color={COLORS.muted} size={14} strokeWidth={1.8} />
+            <Text
+              style={{
+                color: COLORS.muted,
+                fontFamily: "CrimsonPro_400Regular",
+                fontSize: 12,
+              }}
+            >
+              Download
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleAddToCart}
+            style={{
+              flex: 1,
+              height: 40,
+              borderRadius: RADIUS.md,
+              backgroundColor: isInCart ? COLORS.gold + "22" : COLORS.card,
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 6,
+              borderWidth: 1,
+              borderColor: isInCart ? COLORS.gold : COLORS.cardBorder,
+            }}
+          >
+            <Plus
+              color={isInCart ? COLORS.gold : COLORS.muted}
+              size={14}
+              strokeWidth={2}
+            />
+            <Text
+              style={{
+                color: isInCart ? COLORS.gold : COLORS.muted,
+                fontFamily: "CrimsonPro_400Regular",
+                fontSize: 12,
+              }}
+            >
+              {isInCart ? "In Cart" : "Add to Cart"}
+            </Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {readerOpen && (
+        <View style={StyleSheet.absoluteFill}>
+          <ManuscriptReader
+            bookId={String(id === 1 ? 'quran' : id === 2 ? 'bible' : 'bible')}
+            onBack={() => setReaderOpen(false)}
+          />
+        </View>
+      )}
     </View>
   );
 }
