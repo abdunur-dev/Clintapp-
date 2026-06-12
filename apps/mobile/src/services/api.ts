@@ -142,4 +142,25 @@ export const api = {
   getBookmarks: (bookId: string) => api.get<BookmarkData[]>(`/bookmarks/${bookId}`),
   toggleBookmark: (bm: Omit<BookmarkData, '_id'>) => api.post<BookmarkData>('/bookmarks', bm),
   removeBookmark: (id: string) => api.delete(`/bookmarks/${id}`),
+
+  // Receipts
+  uploadReceipt: async (orderId: string, imageUri: string) => {
+    const formData = new FormData();
+    formData.append('orderId', orderId);
+    formData.append('receipt', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'receipt.jpg',
+    } as any);
+    const res = await fetch(`${API_BASE}/receipts/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) throw new Error(`Upload error: ${res.status}`);
+    return res.json();
+  },
+  getReceipts: () => api.get<any[]>('/receipts'),
+  getReceipt: (orderId: string) => api.get<any>(`/receipts/${orderId}`),
+  reviewReceipt: (id: string, status: string, notes?: string) =>
+    api.patch<any>(`/receipts/${id}/review`, { status, notes }),
 };

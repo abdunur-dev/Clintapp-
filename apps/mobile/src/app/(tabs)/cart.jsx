@@ -283,6 +283,7 @@ export default function CartScreen() {
 
             <TouchableOpacity
               activeOpacity={0.85}
+              onPress={() => router.push("/checkout")}
               style={styles.checkoutBtn}
             >
               <CreditCard color={COLORS.bg} size={18} strokeWidth={2} />
