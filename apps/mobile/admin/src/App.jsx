@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
-const UPLOADS = import.meta.env.VITE_UPLOADS_URL || "http://localhost:4000";
+const API = import.meta.env.VITE_API_URL || "/api";
+const UPLOADS = import.meta.env.VITE_UPLOADS_URL || "";
 
 const theme = {
   bg: "#0B0C1A",
@@ -542,6 +542,11 @@ function HadithsPanel() {
   const [showAdd, setShowAdd] = useState(false);
   const [newHadith, setNewHadith] = useState({ book: "", chapter: "", hadithNumber: "", arabic: "", english: "", amharic: "", narrator: "", grade: "" });
   const [viewMode, setViewMode] = useState("reader");
+  const [showImport, setShowImport] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState(null);
+  const [importFile, setImportFile] = useState("");
+  const importFileRef = useRef(null);
 
   const searchRef = useRef("");
   const bookFilterRef = useRef("");
@@ -550,6 +555,29 @@ function HadithsPanel() {
   useEffect(() => { bookFilterRef.current = bookFilter; }, [bookFilter]);
 
   useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
+
+  const handleHadithImport = async () => {
+    const file = importFileRef.current?.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const text = await file.text();
+      let parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const res = await fetch(`${API}/hadiths/bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hadiths: arr }) });
+      const rtext = await res.text();
+      let data;
+      try { data = JSON.parse(rtext); } catch { throw new Error(`Server error: ${rtext.slice(0, 100)}`); }
+      if (!res.ok) throw new Error(data.error);
+      setImportMsg({ type: "success", text: `${data.count} hadith(s) imported from ${file.name}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}` });
+      setImportFile("");
+      importFileRef.current.value = "";
+      setShowImport(false);
+      fetchHadiths();
+      fetchBooks();
+    } catch (err) { setImportMsg({ type: "error", text: err.message }); } finally { setImporting(false); }
+  };
 
   const fetchHadiths = useCallback(async () => {
     try {
@@ -631,11 +659,40 @@ function HadithsPanel() {
               <Icon name="upload" size={12} color={theme.bg} /> Add Hadith
             </button>
           )}
+          <button onClick={() => setShowImport(!showImport)} style={showImport ? s.primaryBtn : s.secondaryBtn}>
+            <Icon name="upload" size={12} color={showImport ? theme.bg : theme.gold} /> Import
+          </button>
           <button onClick={() => { fetchHadiths(); fetchBooks(); }} style={s.secondaryBtn}>
             <Icon name="refresh" size={12} color={theme.muted} />
           </button>
         </div>
       </div>
+
+      {/* Import section */}
+      {showImport && (
+        <div style={s.importSection}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <h3 style={s.sectionTitle}>Import Hadiths JSON</h3>
+            <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input ref={importFileRef} type="file" accept=".json" onChange={(e) => setImportFile(e.target.files?.[0]?.name || "")} style={{ display: "none" }} />
+            <button onClick={() => importFileRef.current?.click()} style={s.secondaryBtn}>
+              <Icon name="folder" size={12} color={theme.muted} /> Choose File
+            </button>
+            {importFile && <span style={{ fontSize: 12, color: theme.gold, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{importFile}</span>}
+            {importFile && (
+              <>
+                <button onClick={handleHadithImport} disabled={importing} style={{ ...s.primaryBtn, opacity: importing ? 0.5 : 1 }}>
+                  {importing ? "Importing..." : "Quick Import"}
+                </button>
+                <button onClick={() => { setImportFile(""); importFileRef.current.value = ""; }} style={s.iconBtnPlain}><Icon name="x" size={12} color={theme.muted} /></button>
+              </>
+            )}
+          </div>
+          {importMsg && <p style={{ color: importMsg.type === "success" ? theme.success : theme.danger, fontSize: 13, marginTop: 8 }}>{importMsg.text}</p>}
+        </div>
+      )}
 
       {loading ? (
         <div style={s.loadingState}><div style={s.spinner} /><p>Loading hadiths...</p></div>

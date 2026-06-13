@@ -21,8 +21,11 @@ const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/clintapp";
 
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+const adminDist = path.join(__dirname, "..", "admin", "dist");
+app.use(express.static(adminDist));
 
 app.use("/api/books", booksRouter);
 app.use("/api/cart", cartRouter);
@@ -32,6 +35,10 @@ app.use("/api/bookmarks", bookmarksRouter);
 app.use("/api/receipts", receiptsRouter);
 app.use("/api/hadiths", hadithsRouter);
 app.use("/api/translate", translateRouter);
+
+app.get("/admin/*", (req, res) => {
+  res.sendFile(path.join(adminDist, "index.html"));
+});
 
 app.get("/api/db", async (req, res) => {
   try {

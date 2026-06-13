@@ -1,5 +1,6 @@
 import { Router } from "express";
 import Hadith from "../models/Hadith.js";
+import Book from "../models/Book.js";
 
 const router = Router();
 
@@ -62,8 +63,32 @@ router.post("/bulk", async (req, res) => {
     if (!Array.isArray(hadiths) || hadiths.length === 0) {
       return res.status(400).json({ error: "hadiths must be a non-empty array" });
     }
+
+    // Auto-create Book if it doesn't exist
+    const bookNames = [...new Set(hadiths.map(h => h.book).filter(Boolean))];
+    const existingBooks = await Book.find({ bookSlug: { $in: bookNames } }).lean();
+    const existingSlugs = new Set(existingBooks.map(b => b.bookSlug));
+    const autoBooks = bookNames
+      .filter(name => !existingSlugs.has(name))
+      .map(name => ({
+        title: name,
+        category: "Hadith",
+        isSacred: true,
+        sacredType: "hadith",
+        bookSlug: name,
+        color: "#2A5C3A",
+        iconName: "BookOpen",
+        price: 0,
+        rating: 5,
+        chapters: 0,
+        pages: hadiths.filter(h => h.book === name).length,
+      }));
+    if (autoBooks.length > 0) {
+      await Book.insertMany(autoBooks);
+    }
+
     const created = await Hadith.insertMany(hadiths);
-    res.status(201).json({ count: created.length, hadiths: created });
+    res.status(201).json({ count: created.length, hadiths: created, autoCreatedBooks: autoBooks.length });
   } catch (err) {
     if (err.name === "ValidationError") {
       const fields = Object.keys(err.errors).join(", ");
