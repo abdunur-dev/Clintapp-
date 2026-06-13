@@ -1,3 +1,9 @@
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: system-ui, -apple-system, sans-serif; }
-.font-serif { font-family: "Cormorant Garamond", Georgia, serif; }
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+[data-hover]:hover { 
+  border-color: #C9A84C55 !important;
+  box-shadow: 0 0 0 1px #C9A84C22;
+}
+
