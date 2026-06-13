@@ -1,10 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -27,10 +28,11 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
+import api from "../../services/api";
 
 const TABS = ["All", "Islamic", "Christianity", "Philosophy", "Fiction"];
 
-const BOOKS = [];
+const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 function StarField() {
   const stars = Array.from({ length: 20 }, (_, i) => ({
@@ -62,6 +64,7 @@ function StarField() {
 }
 
 function BookCard({ book, onPress, onToggleSaved, saved }) {
+  const IconComponent = ICON_MAP[book.iconName] || BookOpen;
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -91,21 +94,7 @@ function BookCard({ book, onPress, onToggleSaved, saved }) {
           borderColor: COLORS.gold + "30",
         }}
       >
-        <book.icon color={COLORS.gold} size={26} strokeWidth={1.5} />
-        {book.downloaded && (
-          <View
-            style={{
-              position: "absolute",
-              bottom: 4,
-              right: 4,
-              backgroundColor: COLORS.gold,
-              borderRadius: 10,
-              padding: 2,
-            }}
-          >
-            <Check color={COLORS.bg} size={8} strokeWidth={3} />
-          </View>
-        )}
+        <IconComponent color={COLORS.gold} size={26} strokeWidth={1.5} />
       </LinearGradient>
 
       <View style={{ flex: 1 }}>
@@ -185,30 +174,15 @@ function BookCard({ book, onPress, onToggleSaved, saved }) {
           activeOpacity={0.8}
           onPress={onPress}
           style={{
-            backgroundColor: book.downloaded ? COLORS.accent : COLORS.gold,
+            backgroundColor: COLORS.gold,
             paddingHorizontal: 10,
             paddingVertical: 5,
             borderRadius: RADIUS.sm,
             borderWidth: 1,
-            borderColor: book.downloaded
-              ? COLORS.gold + "60"
-              : COLORS.goldLight,
+            borderColor: COLORS.goldLight,
           }}
         >
-          {book.downloaded ? (
-            <Text
-              style={{
-                color: COLORS.gold,
-                fontSize: 10,
-                fontFamily: "CrimsonPro_700Bold",
-                letterSpacing: 0.5,
-              }}
-            >
-              READ
-            </Text>
-          ) : (
-            <Download color={COLORS.bg} size={14} strokeWidth={2.5} />
-          )}
+          <Download color={COLORS.bg} size={14} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -221,10 +195,17 @@ export default function LibraryScreen() {
   const [activeTab, setActiveTab] = useState("All");
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [savedIds, setSavedIds] = useState(new Set());
+  const [books, setBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getBooks().then(setBooks).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
   if (!fontsLoaded) return null;
 
   const filtered =
-    activeTab === "All" ? BOOKS : BOOKS.filter((b) => b.category === activeTab);
+    activeTab === "All" ? books : books.filter((b) => b.category === activeTab);
 
   const toggleSaved = (id) => {
     setSavedIds((prev) => {
@@ -234,6 +215,14 @@ export default function LibraryScreen() {
       return next;
     });
   };
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={COLORS.gold} size="large" />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -292,11 +281,7 @@ export default function LibraryScreen() {
         }}
       >
         {[
-          { label: "Total Books", value: BOOKS.length },
-          {
-            label: "Downloaded",
-            value: BOOKS.filter((b) => b.downloaded).length,
-          },
+          { label: "Total Books", value: books.length },
           { label: "Categories", value: 4 },
         ].map((s, i) => (
           <View
@@ -424,11 +409,11 @@ export default function LibraryScreen() {
 
         {filtered.map((book) => (
           <BookCard
-            key={book.id}
+            key={book._id}
             book={book}
-            saved={savedIds.has(book.id)}
-            onPress={() => router.push(`/book/${book.id}`)}
-            onToggleSaved={() => toggleSaved(book.id)}
+            saved={savedIds.has(book._id)}
+            onPress={() => router.push(`/book/${book._id}`)}
+            onToggleSaved={() => toggleSaved(book._id)}
           />
         ))}
       </ScrollView>

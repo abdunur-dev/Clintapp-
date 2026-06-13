@@ -42,6 +42,19 @@ router.post("/", async (req, res) => {
   }
 });
 
+router.post("/bulk", async (req, res) => {
+  try {
+    const { books } = req.body;
+    if (!Array.isArray(books) || books.length === 0) {
+      return res.status(400).json({ error: "books must be a non-empty array" });
+    }
+    const created = await Book.insertMany(books);
+    res.status(201).json({ count: created.length, books: created });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 router.patch("/:id", async (req, res) => {
   try {
     const book = await Book.findByIdAndUpdate(req.params.id, req.body, { new: true });

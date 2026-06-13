@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -26,12 +27,14 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
+import { api } from "../../services/api";
 
-const ALL_BOOKS = [];
 
 const TRENDING = [];
 
 const POPULAR_CATEGORIES = [];
+
+const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 function StarField() {
   const stars = Array.from({ length: 16 }, (_, i) => ({
@@ -67,12 +70,18 @@ export default function SearchScreen() {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
+  const [allBooks, setAllBooks] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getBooks().then(setAllBooks).catch(console.error).finally(() => setLoading(false));
+  }, []);
 
   if (!fontsLoaded) return null;
 
   const results =
     query.length > 1
-      ? ALL_BOOKS.filter(
+      ? allBooks.filter(
           (b) =>
             b.title.toLowerCase().includes(query.toLowerCase()) ||
             b.titleAm.includes(query) ||
@@ -171,7 +180,11 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {query.length > 1 ? (
+        {loading ? (
+          <View style={{ alignItems: "center", marginTop: 60 }}>
+            <ActivityIndicator color={COLORS.gold} size="large" />
+          </View>
+        ) : query.length > 1 ? (
           <>
             <Text
               style={{
@@ -211,7 +224,7 @@ export default function SearchScreen() {
             ) : (
               results.map((book) => (
                 <TouchableOpacity
-                  key={book.id}
+                  key={book._id}
                   style={{
                     backgroundColor: COLORS.card,
                     borderRadius: 14,
@@ -234,11 +247,7 @@ export default function SearchScreen() {
                       marginRight: 14,
                     }}
                   >
-                    <book.icon
-                      color={COLORS.gold}
-                      size={20}
-                      strokeWidth={1.5}
-                    />
+                    {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
                   </LinearGradient>
                   <View style={{ flex: 1 }}>
                     <Text
@@ -451,10 +460,10 @@ export default function SearchScreen() {
             >
               Popular Picks
             </Text>
-            {ALL_BOOKS.slice(0, 4).map((book) => (
+            {allBooks.slice(0, 4).map((book) => (
               <TouchableOpacity
-                key={book.id}
-                onPress={() => router.push(`/book/${book.id}`)}
+                key={book._id}
+                onPress={() => router.push(`/book/${book._id}`)}
                 activeOpacity={0.8}
                 style={{
                   backgroundColor: COLORS.card,
@@ -478,7 +487,7 @@ export default function SearchScreen() {
                     marginRight: 14,
                   }}
                 >
-                  <book.icon color={COLORS.gold} size={20} strokeWidth={1.5} />
+                  {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
                 </LinearGradient>
                 <View style={{ flex: 1 }}>
                   <Text

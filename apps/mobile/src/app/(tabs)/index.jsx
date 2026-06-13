@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,8 +26,11 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
 import { CartButton } from "../../components/CartButton";
 import { FadeInView, ScaleInView, SlideUpView } from "../../components/animations";
+import { api } from "../../services/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
+
+const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 const categories = [
   { id: "islamic", title: "እስልምና", subtitle: "Islamic", icon: Moon },
@@ -39,39 +42,6 @@ const categories = [
   },
   { id: "philosophy", title: "ፍልስፍና", subtitle: "Philosophy", icon: Feather },
   { id: "fiction", title: "ልብ ወለድ", subtitle: "Fiction", icon: BookOpen },
-];
-
-const featured = [
-  {
-    id: 1,
-    title: "Quran — Amharic",
-    titleAm: "ቅዱስ ቁርአን",
-    author: "Translation",
-    pages: 604,
-    progress: 0.34,
-    category: "Islamic",
-    icon: Moon,
-  },
-  {
-    id: 2,
-    title: "The Bible — Amharic",
-    titleAm: "ቅዱስ መጽሐፍ",
-    author: "Holy Scripture",
-    pages: 1189,
-    progress: 0.12,
-    category: "Christianity",
-    icon: Church,
-  },
-  {
-    id: 3,
-    title: "Meditations",
-    titleAm: "ሥነ አዕምሮ",
-    author: "Marcus Aurelius",
-    pages: 254,
-    progress: 0.65,
-    category: "Philosophy",
-    icon: Feather,
-  },
 ];
 
 function StarField() {
@@ -108,6 +78,11 @@ export default function HomeScreen() {
   const router = useRouter();
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [activeCategory, setActiveCategory] = useState("islamic");
+  const [books, setBooks] = useState([]);
+
+  useEffect(() => {
+    api.getSacredBooks().then(setBooks).catch(() => {});
+  }, []);
 
   const handleCartPress = () => router.push("/cart");
 
@@ -328,10 +303,10 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {featured.map((book, i) => (
-            <FadeInView key={book.id} delay={400 + i * 100}>
+          {books.map((book, i) => (
+            <FadeInView key={book._id} delay={400 + i * 100}>
             <TouchableOpacity
-              onPress={() => router.push(`/book/${book.id}`)}
+              onPress={() => router.push(`/book/${book._id}`)}
               activeOpacity={0.8}
               style={{
                 backgroundColor: COLORS.card,
@@ -358,7 +333,11 @@ export default function HomeScreen() {
                   borderColor: COLORS.gold + "30",
                 }}
               >
-                <book.icon color={COLORS.gold} size={24} strokeWidth={1.5} />
+                {React.createElement(ICON_MAP[book.iconName] || BookOpen, {
+                  color: COLORS.gold,
+                  size: 24,
+                  strokeWidth: 1.5,
+                })}
               </LinearGradient>
 
               <View style={{ flex: 1 }}>

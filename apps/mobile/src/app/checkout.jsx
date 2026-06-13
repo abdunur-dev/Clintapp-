@@ -28,13 +28,13 @@ export default function CheckoutScreen() {
   const router = useRouter();
   const { items, getTotal, clearCart } = useCartStore();
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
-  const [receiptUri, setReceiptUri] = useState<string | null>(null);
+  const [receiptUri, setReceiptUri] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const total = getTotal();
 
-  const pickImage = async (useCamera: boolean) => {
+  const pickImage = async (useCamera) => {
     const permission = useCamera
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -67,7 +67,7 @@ export default function CheckoutScreen() {
       await api.uploadReceipt(order._id, receiptUri);
       clearCart();
       setSuccess(true);
-    } catch (err: any) {
+    } catch (err) {
       Alert.alert("Upload failed", err.message || "Please try again");
     } finally {
       setUploading(false);

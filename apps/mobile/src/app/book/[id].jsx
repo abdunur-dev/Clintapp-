@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Dimensions,
   Share,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -42,58 +43,15 @@ import { useCartStore } from "../../stores/cartStore";
 import { useReaderStore } from "../../stores/readerStore";
 import ManuscriptReader from "../../components/ManuscriptReader";
 import { FadeInView, ScaleInView, ScaleButton } from "../../components/animations";
+import { api } from "../../services/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-const BOOKS_DATA = {
-  1: {
-    id: 1,
-    title: "Quran — Amharic",
-    titleAm: "ቅዱስ ቁርአን",
-    author: "Translation",
-    category: "Islamic",
-    pages: 604,
-    rating: 5,
-    icon: Moon,
-    color: "#4A8C5C",
-    description:
-      "The Holy Qur'an in Amharic translation. A guide for those who are conscious of Allah, with verses that bring peace and guidance to the soul.",
-    progress: 0.34,
-    sample: "በስመ አላህ በጣም ቸር በጣም አዛኝ። ሁሉንም ምስጋና የአለማችን ጌታ ለአላህ ይገባል። በመጨረሻው ቀን ባለቤት።",
-    chapters: 114,
-  },
-  2: {
-    id: 2,
-    title: "The Bible — Amharic",
-    titleAm: "ቅዱስ መጽሐፍ",
-    author: "Holy Scripture",
-    category: "Christianity",
-    pages: 1189,
-    rating: 5,
-    icon: Church,
-    color: "#5C6A9A",
-    description:
-      "The Holy Bible in Amharic, containing the Old and New Testaments. A sacred text of faith, hope, and divine love.",
-    progress: 0.12,
-    sample: "መጀመሪያ ነገሥት ነበረ ቃሉ፥ ቃሉም ከእግዚአብሔር ጋር ነበረ፥ ቃሉም እግዚአብሔር ነበረ።",
-    chapters: 66,
-  },
-  3: {
-    id: 3,
-    title: "Meditations",
-    titleAm: "ሥነ አዕምሮ",
-    author: "Marcus Aurelius",
-    category: "Philosophy",
-    pages: 254,
-    rating: 4.7,
-    icon: Feather,
-    color: "#8C6A3A",
-    description:
-      "Personal writings of the Roman Emperor Marcus Aurelius, reflecting on Stoic philosophy and the nature of the human mind.",
-    progress: 0.65,
-    sample: "You have power over your mind — not outside events. Realize this, and you will find strength.",
-    chapters: 12,
-  },
+const ICON_MAP = {
+  Moon,
+  Church,
+  Feather,
+  BookOpen,
 };
 
 export default function BookDetailScreen() {
@@ -110,28 +68,37 @@ export default function BookDetailScreen() {
   const { bookmarks, toggleBookmark } = useReaderStore();
   const isBookmarked = bookmarks.some((b) => b.bookId === String(id));
 
+  const [book, setBook] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    api.getBook(id).then(setBook).catch(console.error).finally(() => setLoading(false));
+  }, [id]);
+
   const fontSizes = [13, 15, 18];
   const fontSize = fontSizes[fontLevel];
 
   const handleAddToCart = useCallback(() => {
+    if (!book) return;
     addItem({
-      bookId: String(id || 1),
-      title: BOOKS_DATA[id]?.title || BOOKS_DATA[1].title,
-      titleAm: BOOKS_DATA[id]?.titleAm || BOOKS_DATA[1].titleAm,
-      author: BOOKS_DATA[id]?.author || BOOKS_DATA[1].author,
-      price: 299,
-      coverColor: BOOKS_DATA[id]?.color || BOOKS_DATA[1].color,
-      iconName: (BOOKS_DATA[id]?.icon || BOOKS_DATA[1].icon).displayName || 'BookOpen',
-      category: BOOKS_DATA[id]?.category || BOOKS_DATA[1].category,
+      bookId: book._id || String(id),
+      title: book.title,
+      titleAm: book.titleAm,
+      author: book.author,
+      price: book.price,
+      coverColor: book.color,
+      iconName: book.iconName || 'BookOpen',
+      category: book.category,
     });
-  }, [id, addItem]);
+  }, [book, id, addItem]);
 
   const handleShare = useCallback(() => {
+    if (!book) return;
     Share.share({
-      message: `${BOOKS_DATA[id]?.title || BOOKS_DATA[1].title} — ${BOOKS_DATA[id]?.titleAm || BOOKS_DATA[1].titleAm}\n\n${BOOKS_DATA[id]?.description || BOOKS_DATA[1].description}\n\nRead more on ንባብ ቤት`,
-      title: BOOKS_DATA[id]?.title || BOOKS_DATA[1].title,
+      message: `${book.title} — ${book.titleAm}\n\n${book.description}\n\nRead more on ንባብ ቤት`,
+      title: book.title,
     });
-  }, [id]);
+  }, [book]);
 
   const handleToggleFont = useCallback(() => {
     setFontLevel((prev) => (prev + 1) % 3);
@@ -146,21 +113,36 @@ export default function BookDetailScreen() {
   }, []);
 
   const handleToggleBookmark = useCallback(() => {
-    const b = BOOKS_DATA[id] || BOOKS_DATA[1];
+    if (!book) return;
     toggleBookmark({
-      bookId: String(id),
-      verseNumber: Math.round(b.pages * (b.progress || 0)),
+      bookId: book._id || String(id),
+      verseNumber: Math.round(book.pages * (book.progress || 0)),
       chapterNumber: 1,
-      label: b.title,
+      label: book.title,
     });
     Alert.alert(isBookmarked ? "Removed" : "Bookmarked", isBookmarked ? "Bookmark removed" : "Added to your bookmarks");
-  }, [id, isBookmarked, toggleBookmark]);
+  }, [book, id, isBookmarked, toggleBookmark]);
 
   if (!fontsLoaded) return null;
 
-  const book = BOOKS_DATA[id] || BOOKS_DATA[1];
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator color={COLORS.gold} size="large" />
+      </View>
+    );
+  }
+
+  if (!book) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: COLORS.muted, fontFamily: "CrimsonPro_400Regular", fontSize: 16 }}>Book not found</Text>
+      </View>
+    );
+  }
+
   const isInCart = getItem(String(id));
-  const Icon = book.icon;
+  const Icon = ICON_MAP[book.iconName] || BookOpen;
   const themes = [
     { bg: COLORS.bg, text: COLORS.white, label: "Dark" },
     { bg: "#F5E6C8", text: "#2A1A0A", label: "Sepia" },
