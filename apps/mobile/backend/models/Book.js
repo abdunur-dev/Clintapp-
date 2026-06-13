@@ -3,14 +3,10 @@ import mongoose from "mongoose";
 const bookSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
-    titleAm: { type: String, required: true },
+    titleAm: { type: String, default: "" },
     author: { type: String, required: true },
-    category: {
-      type: String,
-      enum: ["Islamic", "Christianity", "Philosophy", "Fiction"],
-      required: true,
-    },
-    pages: { type: Number, required: true },
+    category: { type: String, default: "General" },
+    pages: { type: Number, default: 0 },
     chapters: { type: Number, default: 0 },
     rating: { type: Number, default: 5, min: 0, max: 5 },
     price: { type: Number, default: 299 },
@@ -21,7 +17,7 @@ const bookSchema = new mongoose.Schema(
     progress: { type: Number, default: 0, min: 0, max: 1 },
     coverUrl: { type: String, default: "" },
     isSacred: { type: Boolean, default: false },
-    sacredType: { type: String, enum: ["quran", "bible", null], default: null },
+    sacredType: { type: String, default: null },
   },
   { timestamps: true }
 );

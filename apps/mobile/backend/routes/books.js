@@ -51,7 +51,12 @@ router.post("/bulk", async (req, res) => {
     const created = await Book.insertMany(books);
     res.status(201).json({ count: created.length, books: created });
   } catch (err) {
-    res.status(400).json({ error: err.message });
+    if (err.name === "ValidationError") {
+      const fields = Object.keys(err.errors).join(", ");
+      res.status(400).json({ error: `Validation failed: ${fields}` });
+    } else {
+      res.status(400).json({ error: err.message });
+    }
   }
 });
 

@@ -383,7 +383,7 @@ function BooksPanel() {
             <h3 style={s.sectionTitle}>Import Books JSON</h3>
             <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
           </div>
-          <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder={`[\n  {\n    "title": "My Book",\n    "author": "Author",\n    "category": "Fiction",\n    "price": 199\n  }\n]`} style={s.jsonInput} rows={6} />
+          <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder={`[\n  {\n    "title": "My Book",\n    "author": "Author Name",\n    "category": "Fiction",\n    "pages": 200,\n    "price": 199\n  }\n]`} style={s.jsonInput} rows={6} />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
             {message && <span style={{ color: message.type === "success" ? theme.success : theme.danger, fontSize: 13 }}>{message.text}</span>}
             <button onClick={handleImport} disabled={!jsonText.trim() || importing} style={{ ...s.primaryBtn, opacity: !jsonText.trim() || importing ? 0.5 : 1 }}>
