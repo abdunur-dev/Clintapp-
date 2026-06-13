@@ -58,9 +58,13 @@ function App() {
           onClick={() => setTab("books")}
           style={{ ...styles.tab, borderBottom: tab === "books" ? "2px solid #C9A84C" : "2px solid transparent" }}
         >Books</button>
+        <button
+          onClick={() => setTab("database")}
+          style={{ ...styles.tab, borderBottom: tab === "database" ? "2px solid #C9A84C" : "2px solid transparent" }}
+        >Database</button>
       </div>
 
-      {tab === "receipts" ? <ReceiptsPanel /> : <BooksPanel />}
+      {tab === "receipts" ? <ReceiptsPanel /> : tab === "books" ? <BooksPanel /> : <DatabasePanel />}
     </div>
   );
 }
@@ -358,6 +362,129 @@ function BooksPanel() {
       )}
     </div>
   );
+}
+
+function DatabasePanel() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedCol, setSelectedCol] = useState(null);
+  const [error, setError] = useState(null);
+
+  const fetchDb = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`${API}/db`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setData(await res.json());
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchDb(); }, []);
+
+  const collections = data ? Object.keys(data) : [];
+
+  return (
+    <div style={{ padding: "0 32px 32px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", margin: "24px 0 16px" }}>
+        <h3 style={styles.sectionTitle}>MongoDB — clintapp</h3>
+        <button onClick={fetchDb} style={styles.refreshBtn}>Refresh</button>
+      </div>
+
+      {error && (
+        <div style={{ backgroundColor: "#E0555522", border: "1px solid #E05555", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+          <p style={{ color: "#E05555", fontSize: 13, margin: 0 }}>Failed to connect: {error}. Is the backend running?</p>
+        </div>
+      )}
+
+      {loading ? (
+        <p style={styles.loading}>Loading database...</p>
+      ) : collections.length === 0 ? (
+        <p style={styles.empty}>No collections found</p>
+      ) : (
+        <div style={{ display: "flex", gap: 20 }}>
+          <div style={{ width: 200, flexShrink: 0 }}>
+            {collections.map((name) => (
+              <div
+                key={name}
+                onClick={() => setSelectedCol(name)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 8,
+                  backgroundColor: selectedCol === name ? "#1E1F4A" : "transparent",
+                  color: selectedCol === name ? "#C9A84C" : "#FFFFFF",
+                  cursor: "pointer",
+                  fontSize: 13,
+                  borderLeft: selectedCol === name ? "3px solid #C9A84C" : "3px solid transparent",
+                  marginBottom: 4,
+                  display: "flex",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span>{name}</span>
+                <span style={{ color: "#7878A0" }}>{data[name].length}</span>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {!selectedCol ? (
+              <p style={{ color: "#7878A0", fontSize: 13 }}>Select a collection on the left</p>
+            ) : (
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
+                  <h4 style={{ color: "#C9A84C", fontSize: 14, margin: 0 }}>
+                    {selectedCol} <span style={{ color: "#7878A0", fontWeight: 400 }}>({data[selectedCol].length} documents)</span>
+                  </h4>
+                </div>
+                {data[selectedCol].length === 0 ? (
+                  <p style={{ color: "#7878A0", fontSize: 13 }}>Empty collection</p>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          {Object.keys(data[selectedCol][0]).slice(0, 8).map((key) => (
+                            <th key={key} style={{ textAlign: "left", padding: "8px 10px", borderBottom: "1px solid #252650", color: "#7878A0", fontWeight: 600, whiteSpace: "nowrap" }}>{key}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data[selectedCol].map((doc, i) => (
+                          <tr key={doc._id?.toString() || i} style={{ borderBottom: "1px solid #1A1B3A" }}>
+                            {Object.keys(data[selectedCol][0]).slice(0, 8).map((key) => (
+                              <td key={key} style={{ padding: "6px 10px", color: "#FFFFFF", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                {formatCell(doc[key])}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatCell(val) {
+  if (val === null || val === undefined) return <span style={{ color: "#7878A0" }}>—</span>;
+  if (typeof val === "object") {
+    if (Array.isArray(val)) return `[${val.length} items]`;
+    if (val._id) return val._id.toString().slice(-8) + "...";
+    return JSON.stringify(val).slice(0, 40);
+  }
+  if (typeof val === "boolean") return val ? "✓" : "✗";
+  return String(val);
 }
 
 const styles = {

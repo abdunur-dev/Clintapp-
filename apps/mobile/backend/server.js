@@ -29,8 +29,18 @@ app.use("/api/notes", notesRouter);
 app.use("/api/bookmarks", bookmarksRouter);
 app.use("/api/receipts", receiptsRouter);
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", timestamp: new Date().toISOString() });
+app.get("/api/db", async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+    const collections = await db.listCollections().toArray();
+    const data = {};
+    for (const col of collections) {
+      data[col.name] = await db.collection(col.name).find().toArray();
+    }
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 mongoose
