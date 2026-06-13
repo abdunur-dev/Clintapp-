@@ -11,6 +11,8 @@ import ordersRouter from "./routes/orders.js";
 import notesRouter from "./routes/notes.js";
 import bookmarksRouter from "./routes/bookmarks.js";
 import receiptsRouter from "./routes/receipts.js";
+import hadithsRouter from "./routes/hadiths.js";
+import translateRouter from "./routes/translate.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -28,6 +30,8 @@ app.use("/api/orders", ordersRouter);
 app.use("/api/notes", notesRouter);
 app.use("/api/bookmarks", bookmarksRouter);
 app.use("/api/receipts", receiptsRouter);
+app.use("/api/hadiths", hadithsRouter);
+app.use("/api/translate", translateRouter);
 
 app.get("/api/db", async (req, res) => {
   try {

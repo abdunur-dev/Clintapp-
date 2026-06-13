@@ -15,10 +15,10 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isSmall = SCREEN_WIDTH < 380;
 const PAGE_WIDTH = SCREEN_WIDTH / 2 - 6;
 
-function OrnamentalBorder({ children, side }) {
+export function OrnamentalBorder({ children, compact }) {
   const borderColors = [COLORS.gold, COLORS.ornamentBorder, COLORS.goldDim];
   return (
-    <View style={styles.pageOuter}>
+    <View style={[styles.pageOuter, compact && { width: '100%' }]}>
       <LinearGradient
         colors={borderColors}
         start={{ x: 0, y: 0 }}
@@ -33,12 +33,16 @@ function OrnamentalBorder({ children, side }) {
           colors={['rgba(245, 230, 200, 0.12)', 'rgba(245, 230, 200, 0.06)']}
           style={StyleSheet.absoluteFill}
         />
-        <View style={styles.cornerTL} />
-        <View style={styles.cornerTR} />
-        <View style={styles.cornerBL} />
-        <View style={styles.cornerBR} />
-        <View style={styles.centerOrnament}>
-          <View style={styles.ornamentDiamond} />
+        {compact ? null : (
+          <>
+            <View style={styles.cornerTL} />
+            <View style={styles.cornerTR} />
+            <View style={styles.cornerBL} />
+            <View style={styles.cornerBR} />
+          </>
+        )}
+        <View style={[styles.centerOrnament, compact && { top: 8 }]}>
+          <View style={[styles.ornamentDiamond, compact && { width: 4, height: 4 }]} />
         </View>
         {children}
       </LinearGradient>
@@ -56,25 +60,33 @@ export default function ParchmentPage({
   bookId,
   chapterNumber,
   script = 'ltr',
+  scrollRef,
+  onScroll,
+  compact,
 }) {
   const { fontSize, isBookmarked, toggleBookmark } = useReaderStore();
   const isRTL = script === 'rtl';
 
   return (
-    <OrnamentalBorder>
-      <View style={[styles.pageInner, isRTL && { direction: 'rtl' }]}>
-        <View style={styles.headerOrnament}>
-          <Text style={styles.headerLine}>⚜</Text>
-        </View>
-        <View style={styles.langLabel}>
+    <OrnamentalBorder compact={compact}>
+      <View style={[styles.pageInner, isRTL && compact && { direction: 'rtl' }, compact && styles.pageInnerCompact]}>
+        {compact ? null : (
+          <View style={styles.headerOrnament}>
+            <Text style={styles.headerLine}>⚜</Text>
+          </View>
+        )}
+        <View style={[styles.langLabel, compact && { position: 'relative', top: 0, right: 0, alignSelf: 'center', marginBottom: 4 }]}>
           <Text style={styles.langText}>{langLabel}</Text>
         </View>
         {chapterTitle && (
-          <Text style={[styles.chapterTitle, isRTL && { textAlign: 'right' }]}>
+          <Text style={[styles.chapterTitle, isRTL && { textAlign: 'right' }, compact && { fontSize: 10, marginBottom: 4 }]}>
             {chapterTitle}
           </Text>
         )}
         <ScrollView
+          ref={scrollRef}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
           style={styles.versesScroll}
           contentContainerStyle={styles.versesContent}
           showsVerticalScrollIndicator={false}
@@ -158,6 +170,9 @@ const styles = StyleSheet.create({
   pageInner: {
     flex: 1,
     padding: isSmall ? 6 : 10,
+  },
+  pageInnerCompact: {
+    padding: 6,
   },
   headerOrnament: {
     alignItems: 'center',

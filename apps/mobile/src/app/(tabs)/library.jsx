@@ -28,9 +28,9 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
-import api from "../../services/api";
+import { api } from "../../services/api";
 
-const TABS = ["All", "Islamic", "Christianity", "Philosophy", "Fiction"];
+const TABS = ["All", "Islamic", "Christianity", "Hadith", "Philosophy", "Fiction"];
 
 const ICON_MAP = { Moon, Church, Feather, BookOpen };
 

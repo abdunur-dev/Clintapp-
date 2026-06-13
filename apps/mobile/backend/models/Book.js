@@ -2,9 +2,9 @@ import mongoose from "mongoose";
 
 const bookSchema = new mongoose.Schema(
   {
-    title: { type: String, required: true },
+    title: { type: String, default: "" },
     titleAm: { type: String, default: "" },
-    author: { type: String, required: true },
+    author: { type: String, default: "" },
     category: { type: String, default: "General" },
     pages: { type: Number, default: 0 },
     chapters: { type: Number, default: 0 },
@@ -18,6 +18,7 @@ const bookSchema = new mongoose.Schema(
     coverUrl: { type: String, default: "" },
     isSacred: { type: Boolean, default: false },
     sacredType: { type: String, default: null },
+    bookSlug: { type: String, default: "" },
   },
   { timestamps: true }
 );

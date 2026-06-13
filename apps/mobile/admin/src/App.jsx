@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const UPLOADS = import.meta.env.VITE_UPLOADS_URL || "http://localhost:4000";
@@ -21,6 +21,7 @@ function Icon({ name, size = 16, color = theme.muted }) {
   const paths = {
     receipts: "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
     books: "M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253",
+    hadiths: "M4 6h16M4 12h16M4 18h16M9 3l1 2h4l1-2M8 9l1 2h6l1-2M8 15l1 2h6l1-2",
     database: "M4 7v10a4 4 0 004 4h8a4 4 0 004-4V7M4 7a4 4 0 014-4h8a4 4 0 014 4M4 7a4 4 0 014 4m0-4v4m8-4v4m-8 4a4 4 0 004 4h8",
     upload: "M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12",
     check: "M5 13l4 4L19 7",
@@ -29,6 +30,7 @@ function Icon({ name, size = 16, color = theme.muted }) {
     trash: "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
     refresh: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15",
     search: "M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z",
+    folder: "M2 6a2 2 0 012-2h5l2 2h7a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6z",
     menu: "M4 6h16M4 12h16M4 18h16",
   };
   return (
@@ -91,6 +93,7 @@ function App() {
 
   const tabs = [
     { id: "receipts", label: "Receipts", icon: "receipts" },
+    { id: "hadiths", label: "Hadiths", icon: "books" },
     { id: "books", label: "Books", icon: "books" },
     { id: "database", label: "Database", icon: "database" },
   ];
@@ -141,11 +144,17 @@ function App() {
           ))}
         </nav>
         <div style={s.sidebarFooter}>
-          <button onClick={() => setLoggedIn(false)} style={s.logoutBtn}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <a href="/hadiths-viewer.html" target="_blank" rel="noopener noreferrer" style={s.viewerLink}>
+              <Icon name="search" size={12} color={theme.muted} />
+              Public Viewer
+            </a>
+            <button onClick={() => setLoggedIn(false)} style={s.logoutBtn}>
             <Icon name="x" size={14} color={theme.muted} />
             Sign out
           </button>
-        </div>
+          </div>
+          </div>
       </aside>
 
       {/* Main */}
@@ -171,6 +180,7 @@ function App() {
 
         <div style={s.content}>
           {tab === "receipts" && <ReceiptsPanel />}
+          {tab === "hadiths" && <HadithsPanel />}
           {tab === "books" && <BooksPanel />}
           {tab === "database" && <DatabasePanel />}
         </div>
@@ -312,6 +322,8 @@ function BooksPanel() {
   const [editBook, setEditBook] = useState(null);
   const [search, setSearch] = useState("");
   const [showImport, setShowImport] = useState(false);
+  const [fileName, setFileName] = useState("");
+  const fileRef = useRef(null);
 
   useEffect(() => { fetchBooks(); }, []);
 
@@ -330,9 +342,43 @@ function BooksPanel() {
     setMessage(null);
     try {
       const res = await fetch(`${API}/books/bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ books: arr }) });
-      const data = await res.json();
+      const text = await res.text();
+      let data;
+      try { data = JSON.parse(text); } catch { throw new Error(`Server returned HTML — backend may be down. Response: ${text.slice(0, 100)}`); }
       if (!res.ok) throw new Error(data.error);
       setMessage({ type: "success", text: `${data.count} book(s) imported successfully` });
+      setJsonText("");
+      setShowImport(false);
+      fetchBooks();
+    } catch (err) { setMessage({ type: "error", text: err.message }); } finally { setImporting(false); }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (ev) => setJsonText(ev.target?.result || "");
+    reader.readAsText(file);
+  };
+
+  const handleFileImport = async () => {
+    const file = fileRef.current?.files?.[0];
+    if (!file) return;
+    setImporting(true);
+    setMessage(null);
+    try {
+      const text = await file.text();
+      let parsed = JSON.parse(text);
+      const arr = Array.isArray(parsed) ? parsed : [parsed];
+      const res = await fetch(`${API}/books/bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ books: arr }) });
+      const rtext = await res.text();
+      let data;
+      try { data = JSON.parse(rtext); } catch { throw new Error(`Server returned HTML. Response: ${rtext.slice(0, 100)}`); }
+      if (!res.ok) throw new Error(data.error);
+      setMessage({ type: "success", text: `${data.count} book(s) imported from ${file.name}` });
+      setFileName("");
+      fileRef.current.value = "";
       setJsonText("");
       setShowImport(false);
       fetchBooks();
@@ -384,6 +430,21 @@ function BooksPanel() {
             <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
           </div>
           <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder={`[\n  {\n    "title": "My Book",\n    "author": "Author Name",\n    "category": "Fiction",\n    "pages": 200,\n    "price": 199\n  }\n]`} style={s.jsonInput} rows={6} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+            <input ref={fileRef} type="file" accept=".json" onChange={handleFileSelect} style={{ display: "none" }} />
+            <button onClick={() => fileRef.current?.click()} style={s.secondaryBtn}>
+              <Icon name="folder" size={12} color={theme.muted} /> Choose File
+            </button>
+            {fileName && <span style={{ fontSize: 12, color: theme.gold, flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{fileName}</span>}
+            {fileName && (
+              <>
+                <button onClick={handleFileImport} disabled={importing} style={{ ...s.primaryBtn, opacity: importing ? 0.5 : 1 }}>
+                  {importing ? "Importing..." : "Quick Import"}
+                </button>
+                <button onClick={() => { setFileName(""); setJsonText(""); fileRef.current.value = ""; }} style={s.iconBtnPlain}><Icon name="x" size={12} color={theme.muted} /></button>
+              </>
+            )}
+          </div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
             {message && <span style={{ color: message.type === "success" ? theme.success : theme.danger, fontSize: 13 }}>{message.text}</span>}
             <button onClick={handleImport} disabled={!jsonText.trim() || importing} style={{ ...s.primaryBtn, opacity: !jsonText.trim() || importing ? 0.5 : 1 }}>
@@ -461,6 +522,240 @@ function BooksPanel() {
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
               <button onClick={() => setEditBook(null)} style={s.secondaryBtn}>Cancel</button>
+              <button onClick={handleUpdate} style={s.primaryBtn}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── HADITHS ─── */
+function HadithsPanel() {
+  const [hadiths, setHadiths] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [bookFilter, setBookFilter] = useState("");
+  const [books, setBooks] = useState([]);
+  const [editHadith, setEditHadith] = useState(null);
+  const [showAdd, setShowAdd] = useState(false);
+  const [newHadith, setNewHadith] = useState({ book: "", chapter: "", hadithNumber: "", arabic: "", english: "", amharic: "", narrator: "", grade: "" });
+  const [viewMode, setViewMode] = useState("reader");
+
+  const searchRef = useRef("");
+  const bookFilterRef = useRef("");
+
+  useEffect(() => { searchRef.current = search; }, [search]);
+  useEffect(() => { bookFilterRef.current = bookFilter; }, [bookFilter]);
+
+  useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
+
+  const fetchHadiths = useCallback(async () => {
+    try {
+      const params = new URLSearchParams();
+      if (bookFilterRef.current) params.set("book", bookFilterRef.current);
+      if (searchRef.current) params.set("search", searchRef.current);
+      params.set("limit", "200");
+      const res = await fetch(`${API}/hadiths?${params}`);
+      const data = await res.json();
+      setHadiths(data.hadiths || []);
+    } catch { /* ignore */ } finally { setLoading(false); }
+  }, []);
+
+  const fetchBooks = useCallback(async () => {
+    try {
+      const res = await fetch(`${API}/hadiths/books`);
+      setBooks(await res.json());
+    } catch { /* ignore */ }
+  }, []);
+
+  const handleSearch = (val) => {
+    setSearch(val);
+    setTimeout(fetchHadiths, 300);
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this hadith?")) return;
+    try { await fetch(`${API}/hadiths/${id}`, { method: "DELETE" }); fetchHadiths(); } catch { alert("Failed"); }
+  };
+
+  const handleCreate = async () => {
+    if (!newHadith.book || !newHadith.arabic || !newHadith.hadithNumber) {
+      alert("Book, Arabic text, and Hadith number are required");
+      return;
+    }
+    try {
+      await fetch(`${API}/hadiths`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...newHadith, hadithNumber: Number(newHadith.hadithNumber) }) });
+      setShowAdd(false);
+      setNewHadith({ book: "", chapter: "", hadithNumber: "", arabic: "", english: "", amharic: "", narrator: "", grade: "" });
+      fetchHadiths();
+      fetchBooks();
+    } catch { alert("Failed"); }
+  };
+
+  const handleUpdate = async () => {
+    if (!editHadith) return;
+    try {
+      await fetch(`${API}/hadiths/${editHadith._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...editHadith, hadithNumber: Number(editHadith.hadithNumber) }) });
+      setEditHadith(null);
+      fetchHadiths();
+    } catch { alert("Failed"); }
+  };
+
+  const filtered = hadiths.filter(
+    (h) => !search || String(h.hadithNumber).includes(search) || h.book?.toLowerCase().includes(search.toLowerCase()) || h.chapter?.toLowerCase().includes(search.toLowerCase()) || h.narrator?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div>
+      <div style={s.toolbar}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+          <div style={s.searchWrap}>
+            <Icon name="search" size={14} color={theme.muted} />
+            <input value={search} onChange={(e) => handleSearch(e.target.value)} placeholder="Search hadiths..." style={s.searchInput} />
+            {search && <button onClick={() => { setSearch(""); fetchHadiths(); }} style={s.clearBtn}><Icon name="x" size={12} color={theme.muted} /></button>}
+          </div>
+          <select value={bookFilter} onChange={(e) => { setBookFilter(e.target.value); fetchHadiths(); }} style={s.selectInput}>
+            <option value="">All Books</option>
+            {books.map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setViewMode(viewMode === "reader" ? "manage" : "reader")} style={viewMode === "reader" ? s.secondaryBtn : s.secondaryBtn}>
+            <Icon name={viewMode === "reader" ? "edit" : "books"} size={12} color={theme.muted} />
+            {viewMode === "reader" ? "Manage" : "Reader"}
+          </button>
+          {viewMode === "manage" && (
+            <button onClick={() => setShowAdd(true)} style={s.primaryBtn}>
+              <Icon name="upload" size={12} color={theme.bg} /> Add Hadith
+            </button>
+          )}
+          <button onClick={() => { fetchHadiths(); fetchBooks(); }} style={s.secondaryBtn}>
+            <Icon name="refresh" size={12} color={theme.muted} />
+          </button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div style={s.loadingState}><div style={s.spinner} /><p>Loading hadiths...</p></div>
+      ) : filtered.length === 0 ? (
+        <div style={s.emptyState}><Icon name="books" size={40} color={theme.muted} /><p>No hadiths found</p></div>
+      ) : viewMode === "reader" ? (
+        /* ─── Manuscript Reader View ─── */
+        <div style={hadithReaderStyles.wrapper}>
+          <div style={hadithReaderStyles.header}>
+            <span style={hadithReaderStyles.headerCount}>{filtered.length} hadiths</span>
+            {bookFilter && <span style={hadithReaderStyles.headerBook}>{bookFilter}</span>}
+          </div>
+          <div style={hadithReaderStyles.grid}>
+            {filtered.map((h) => (
+              <div key={h._id} className="hadith-card" style={hadithReaderStyles.card}>
+                <div style={hadithReaderStyles.badgeRow}>
+                  <span style={hadithReaderStyles.badge}>{h.book}</span>
+                  <span style={hadithReaderStyles.hadithNum}>#{h.hadithNumber}</span>
+                </div>
+                <div style={hadithReaderStyles.arabicText} dir="rtl">{h.arabic}</div>
+                {h.english && <p style={hadithReaderStyles.englishText}>"{h.english}"</p>}
+                {h.amharic && <p style={hadithReaderStyles.amharicText}>{h.amharic}</p>}
+                <div style={hadithReaderStyles.metaRow}>
+                  {h.narrator && <span style={hadithReaderStyles.narrator}>— {h.narrator}</span>}
+                  {h.grade && <span style={{ ...hadithReaderStyles.grade, color: h.grade.toLowerCase() === "sahih" ? theme.success : theme.gold }}>{h.grade}</span>}
+                </div>
+                {h.chapter && <div style={hadithReaderStyles.chapter}>{h.chapter}</div>}
+                <div className="hadith-actions" style={hadithReaderStyles.actions}>
+                  <button onClick={() => setEditHadith({ ...h })} style={hadithReaderStyles.actionBtn} title="Edit"><Icon name="edit" size={11} color={theme.gold} /></button>
+                  <button onClick={() => handleDelete(h._id)} style={{ ...hadithReaderStyles.actionBtn, borderColor: `${theme.danger}33` }} title="Delete"><Icon name="trash" size={11} color={theme.danger} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        /* ─── Management Grid ─── */
+        <div style={hadithReaderStyles.manageGrid}>
+          {filtered.map((h) => (
+            <div key={h._id} style={hadithReaderStyles.manageCard}>
+              <div style={hadithReaderStyles.manageHeader}>
+                <span style={hadithReaderStyles.manageBook}>{h.book}</span>
+                <span style={hadithReaderStyles.manageNum}>#{h.hadithNumber}</span>
+              </div>
+              <p style={hadithReaderStyles.manageArabic}>{h.arabic?.slice(0, 60)}...</p>
+              <p style={hadithReaderStyles.manageEnglish}>{h.english?.slice(0, 80) || "—"}</p>
+              <p style={hadithReaderStyles.manageAmharic}>{h.amharic?.slice(0, 80) || "—"}</p>
+              <div style={hadithReaderStyles.manageMeta}>
+                <span>{h.chapter || "—"}</span>
+                <span>{h.narrator || "—"}</span>
+                <span style={{ color: h.grade?.toLowerCase() === "sahih" ? theme.success : theme.muted }}>{h.grade || "—"}</span>
+              </div>
+              <div style={s.bookActions}>
+                <button onClick={() => setEditHadith({ ...h })} style={s.smallBtn}><Icon name="edit" size={11} color={theme.gold} /></button>
+                <button onClick={() => handleDelete(h._id)} style={{ ...s.smallBtn, borderColor: `${theme.danger}33` }}><Icon name="trash" size={11} color={theme.danger} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─── Add Modal ─── */}
+      {showAdd && (
+        <div style={s.modalOverlay} onClick={() => setShowAdd(false)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ ...s.sectionTitle, margin: 0 }}>Add New Hadith</h3>
+              <button onClick={() => setShowAdd(false)} style={s.iconBtnPlain}><Icon name="x" size={16} color={theme.muted} /></button>
+            </div>
+            <div style={hadithReaderStyles.modalFields}>
+              {[
+                { key: "book", label: "Book *", ph: "Sahih al-Bukhari" },
+                { key: "chapter", label: "Chapter", ph: "Revelation" },
+                { key: "hadithNumber", label: "Hadith Number *", ph: "1", type: "number" },
+                { key: "arabic", label: "Arabic *", ph: "Arabic text...", big: true },
+                { key: "english", label: "English", ph: "English translation...", big: true },
+                { key: "amharic", label: "Amharic", ph: "የአማርኛ ትርጉም...", big: true },
+                { key: "narrator", label: "Narrator", ph: "Umar ibn Al-Khattab" },
+                { key: "grade", label: "Grade", ph: "Sahih" },
+              ].map((f) => (
+                <div key={f.key}>
+                  <label style={s.modalLabel}>{f.label}</label>
+                  {f.big ? (
+                    <textarea value={newHadith[f.key]} onChange={(e) => setNewHadith({ ...newHadith, [f.key]: e.target.value })} style={s.modalInput} rows={3} placeholder={f.ph} />
+                  ) : (
+                    <input value={newHadith[f.key]} onChange={(e) => setNewHadith({ ...newHadith, [f.key]: e.target.value })} style={s.modalInput} placeholder={f.ph} type={f.type || "text"} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
+              <button onClick={() => setShowAdd(false)} style={s.secondaryBtn}>Cancel</button>
+              <button onClick={handleCreate} style={s.primaryBtn}>Create Hadith</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Edit Modal ─── */}
+      {editHadith && (
+        <div style={s.modalOverlay} onClick={() => setEditHadith(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <h3 style={{ ...s.sectionTitle, margin: 0 }}>Edit Hadith</h3>
+              <button onClick={() => setEditHadith(null)} style={s.iconBtnPlain}><Icon name="x" size={16} color={theme.muted} /></button>
+            </div>
+            <div style={hadithReaderStyles.modalFields}>
+              {["book", "chapter", "hadithNumber", "arabic", "english", "amharic", "narrator", "grade"].map((f) => (
+                <div key={f}>
+                  <label style={s.modalLabel}>{f}</label>
+                  {["arabic", "english", "amharic"].includes(f) ? (
+                    <textarea value={editHadith[f] || ""} onChange={(e) => setEditHadith({ ...editHadith, [f]: e.target.value })} style={s.modalInput} rows={3} />
+                  ) : (
+                    <input value={editHadith[f] || ""} onChange={(e) => setEditHadith({ ...editHadith, [f]: e.target.value })} style={s.modalInput} />
+                  )}
+                </div>
+              ))}
+            </div>
+            <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "flex-end" }}>
+              <button onClick={() => setEditHadith(null)} style={s.secondaryBtn}>Cancel</button>
               <button onClick={handleUpdate} style={s.primaryBtn}>Save Changes</button>
             </div>
           </div>
@@ -597,6 +892,43 @@ function formatCell(val) {
   return String(val);
 }
 
+/* ─── HADITH READER STYLES ─── */
+const hadithReaderStyles = {
+  wrapper: { padding: 0 },
+  header: { display: "flex", alignItems: "center", gap: 12, marginBottom: 20 },
+  headerCount: { fontSize: 12, color: theme.muted, fontWeight: 600 },
+  headerBook: { fontSize: 12, color: theme.gold, fontWeight: 600, padding: "3px 12px", borderRadius: 999, backgroundColor: `${theme.gold}15`, border: `1px solid ${theme.gold}33` },
+  grid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))", gap: 20 },
+  card: {
+    backgroundColor: "#1A1520", borderRadius: 14, border: "1px solid #3A2A30", padding: 20,
+    position: "relative", overflow: "hidden",
+    boxShadow: "0 4px 20px rgba(0,0,0,0.3), inset 0 1px 0 rgba(201,168,76,0.08)",
+    transition: "all 0.3s ease",
+  },
+  badgeRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
+  badge: { fontSize: 10, fontWeight: 700, color: theme.gold, textTransform: "uppercase", letterSpacing: 1.5, opacity: 0.8 },
+  hadithNum: { fontSize: 11, color: `${theme.gold}88`, fontFamily: "Georgia, serif", fontWeight: 600 },
+  arabicText: { fontSize: 22, fontFamily: "Traditional Arabic, Scheherazade New, serif", lineHeight: 1.7, color: "#E8DCC8", marginBottom: 12, textAlign: "right", fontWeight: 500 },
+  englishText: { fontSize: 13, color: "#C8BFA0", lineHeight: 1.6, margin: "8px 0", fontStyle: "italic", fontFamily: "Cormorant Garamond, Georgia, serif" },
+  amharicText: { fontSize: 13, color: "#A89880", lineHeight: 1.6, margin: "8px 0", fontFamily: "Noto Sans Ethiopic, serif" },
+  metaRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10, paddingTop: 10, borderTop: "1px solid #2A1E28" },
+  narrator: { fontSize: 11, color: theme.mutedLight, fontStyle: "italic" },
+  grade: { fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 },
+  chapter: { fontSize: 10, color: `${theme.gold}66`, marginTop: 4, textTransform: "uppercase", letterSpacing: 1 },
+  actions: { position: "absolute", top: 12, right: 12, display: "flex", gap: 4, opacity: 0, transition: "opacity 0.2s" },
+  actionBtn: { padding: "3px 6px", borderRadius: 4, border: `1px solid ${theme.border}`, backgroundColor: "rgba(0,0,0,0.5)", cursor: "pointer", display: "flex", alignItems: "center" },
+  manageGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 10 },
+  manageCard: { backgroundColor: theme.surface, borderRadius: 10, border: `1px solid ${theme.border}`, padding: 14 },
+  manageHeader: { display: "flex", justifyContent: "space-between", marginBottom: 6 },
+  manageBook: { fontSize: 11, color: theme.gold, fontWeight: 600 },
+  manageNum: { fontSize: 11, color: theme.muted },
+  manageArabic: { fontSize: 13, color: theme.text, marginBottom: 4, fontFamily: "Traditional Arabic, serif" },
+  manageEnglish: { fontSize: 11, color: theme.mutedLight, marginBottom: 2, fontStyle: "italic" },
+  manageAmharic: { fontSize: 11, color: theme.mutedLight, marginBottom: 4 },
+  manageMeta: { display: "flex", gap: 8, fontSize: 10, color: theme.muted, marginBottom: 8, flexWrap: "wrap" },
+  modalFields: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 },
+};
+
 /* ─── STYLES ─── */
 const s = {
   /* ─── Layout ─── */
@@ -614,6 +946,7 @@ const s = {
   navDot: { width: 6, height: 6, borderRadius: "50%", backgroundColor: theme.gold, marginLeft: "auto" },
   sidebarFooter: { padding: "12px 8px", borderTop: `1px solid ${theme.border}` },
   logoutBtn: { display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", borderRadius: 8, border: "none", backgroundColor: "transparent", color: theme.muted, fontSize: 12, cursor: "pointer", width: "100%" },
+  viewerLink: { display: "flex", alignItems: "center", gap: 8, padding: "6px 14px", borderRadius: 8, color: theme.muted, fontSize: 11, textDecoration: "none", width: "100%", transition: "color 0.15s" },
 
   /* ─── Main ─── */
   mainWrap: { flex: 1, display: "flex", flexDirection: "column", minWidth: 0, width: "100%" },
@@ -668,6 +1001,7 @@ const s = {
   toolbar: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 12 },
   searchWrap: { display: "flex", alignItems: "center", gap: 8, backgroundColor: theme.surface, borderRadius: 8, border: `1px solid ${theme.border}`, padding: "0 12px", flex: "1 1 260px", maxWidth: 400 },
   searchInput: { padding: "8px 0", border: "none", backgroundColor: "transparent", color: theme.text, fontSize: 13, outline: "none", width: "100%" },
+  selectInput: { padding: "8px 12px", borderRadius: 8, border: `1px solid ${theme.border}`, backgroundColor: theme.surface, color: theme.text, fontSize: 12, outline: "none", cursor: "pointer", minWidth: 160 },
   clearBtn: { background: "none", border: "none", cursor: "pointer", padding: 2 },
   primaryBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 18px", borderRadius: 8, border: "none", backgroundColor: theme.gold, color: theme.bg, fontWeight: 600, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" },
   secondaryBtn: { display: "flex", alignItems: "center", gap: 6, padding: "8px 16px", borderRadius: 8, border: `1px solid ${theme.border}`, backgroundColor: "transparent", color: theme.muted, fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" },

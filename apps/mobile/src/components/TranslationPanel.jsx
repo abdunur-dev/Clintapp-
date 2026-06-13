@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,13 @@ import {
   Dimensions,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
-import { X, ChevronUp, Bookmark, Copy, Share2, PenLine, Headphones } from 'lucide-react-native';
+import { X, ChevronUp, Bookmark, Copy, Share2, PenLine, Headphones, Globe } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
 import { LANGUAGES, getVerseText } from '../data/sacred-texts';
+import { api } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PANEL_HEIGHT = SCREEN_HEIGHT * 0.4;
@@ -19,6 +21,7 @@ const PANEL_HEIGHT = SCREEN_HEIGHT * 0.4;
 export default function TranslationPanel({
   bookId,
   chapterNumber,
+  verses: propVerses,
 }) {
   const {
     selectedVerse,
@@ -42,13 +45,30 @@ export default function TranslationPanel({
     }).start();
   }, [panelOpen, slideAnim]);
 
+  const [geminiTranslation, setGeminiTranslation] = useState(null);
+  const [translating, setTranslating] = useState(false);
+
+  useEffect(() => {
+    setGeminiTranslation(null);
+    setTranslating(false);
+  }, [selectedVerse, panelLang]);
+
   if (!selectedVerse) return null;
 
-  const verseText = getVerseText(bookId, chapterNumber, selectedVerse, panelLang);
-  const leftText = getVerseText(bookId, chapterNumber, selectedVerse, leftLang);
-  const rightText = getVerseText(bookId, chapterNumber, selectedVerse, rightLang);
+  const getText = (langId) => {
+    if (propVerses) {
+      const v = propVerses.find(v => v.number === selectedVerse);
+      return v ? v[langId] || '' : '';
+    }
+    return getVerseText(bookId, chapterNumber, selectedVerse, langId);
+  };
+  const verseText = getText(panelLang);
+  const leftText = getText(leftLang);
+  const rightText = getText(rightLang);
   const languages = LANGUAGES.filter(l =>
-    getVerseText(bookId, chapterNumber, selectedVerse, l.id)
+    propVerses
+      ? !!propVerses.find(v => v.number === selectedVerse)?.[l.id]
+      : getVerseText(bookId, chapterNumber, selectedVerse, l.id)
   );
   const currentLang = languages.find(l => l.id === panelLang) || languages[0];
   const isBookmarkedVerse = isBookmarked(selectedVerse, chapterNumber, bookId);
@@ -100,6 +120,37 @@ export default function TranslationPanel({
                 {currentLang?.label} — {currentLang?.labelEn}
               </Text>
               <Text style={styles.panelVerseText}>{verseText}</Text>
+
+              {geminiTranslation ? (
+                <View style={styles.geminiResult}>
+                  <View style={styles.geminiDivider} />
+                  <Text style={styles.geminiLabel}>Gemini Translation — አማርኛ</Text>
+                  <Text style={styles.geminiText}>{geminiTranslation}</Text>
+                </View>
+              ) : verseText ? (
+                <TouchableOpacity
+                  onPress={async () => {
+                    setTranslating(true);
+                    try {
+                      const res = await api.translateText(verseText, 'am');
+                      setGeminiTranslation(res.translation);
+                    } catch (_) {}
+                    setTranslating(false);
+                  }}
+                  disabled={translating}
+                  activeOpacity={0.7}
+                  style={styles.translateBtn}
+                >
+                  {translating ? (
+                    <ActivityIndicator size="small" color={COLORS.gold} />
+                  ) : (
+                    <>
+                      <Globe color={COLORS.gold} size={14} />
+                      <Text style={styles.translateBtnText}>Translate with Gemini</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             {/* Quick language switches */}
@@ -316,5 +367,44 @@ const styles = StyleSheet.create({
   },
   actionLabelActive: {
     color: COLORS.gold,
+  },
+  translateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: SPACING.sm,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.gold + '44',
+    backgroundColor: COLORS.gold + '10',
+  },
+  translateBtnText: {
+    color: COLORS.gold,
+    fontSize: 12,
+    fontFamily: 'CrimsonPro_700Bold',
+  },
+  geminiResult: {
+    marginTop: SPACING.sm,
+  },
+  geminiDivider: {
+    height: 1,
+    backgroundColor: COLORS.goldDim + '30',
+    marginBottom: SPACING.sm,
+  },
+  geminiLabel: {
+    fontSize: 9,
+    color: COLORS.gold,
+    fontFamily: 'CrimsonPro_700Bold',
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  geminiText: {
+    fontSize: 14,
+    color: COLORS.parchmentDark,
+    fontFamily: 'CrimsonPro_400Regular',
+    lineHeight: 22,
   },
 });

@@ -256,6 +256,8 @@ export default function HomeScreen() {
           </View>
         </View>
 
+
+
         {/* Continue Reading */}
         <SlideUpView delay={300}>
         <View style={{ paddingHorizontal: SPACING.xl, marginTop: SPACING.md }}>

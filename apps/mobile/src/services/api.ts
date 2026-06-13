@@ -1,6 +1,9 @@
-const API_BASE = __DEV__
-  ? 'http://localhost:4000/api'
-  : 'https://your-production-api.com/api';
+import { Platform } from 'react-native';
+
+const DEV_API = process.env.EXPO_PUBLIC_API_URL
+  || (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api');
+
+const API_BASE = __DEV__ ? DEV_API : 'https://your-production-api.com/api';
 
 export interface Book {
   _id: string;
@@ -163,4 +166,19 @@ export const api = {
   getReceipt: (orderId: string) => api.get<any>(`/receipts/${orderId}`),
   reviewReceipt: (id: string, status: string, notes?: string) =>
     api.patch<any>(`/receipts/${id}/review`, { status, notes }),
+
+  // Hadiths
+  getHadiths: (params?: { book?: string; search?: string; limit?: number }) => {
+    const q = new URLSearchParams();
+    if (params?.book) q.set('book', params.book);
+    if (params?.search) q.set('search', params.search);
+    if (params?.limit) q.set('limit', String(params.limit));
+    const qs = q.toString();
+    return api.get<{ hadiths: any[]; total: number; page: number; pages: number }>(`/hadiths${qs ? `?${qs}` : ''}`);
+  },
+  getHadithBooks: () => api.get<string[]>('/hadiths/books'),
+
+  // Translate
+  translateText: (text: string, targetLang: 'am' | 'en' = 'am') =>
+    api.post<{ translation: string }>('/translate/text', { text, targetLang }),
 };
