@@ -1,6 +1,4 @@
 import "dotenv/config";
-import dns from "dns";
-dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
@@ -78,18 +76,21 @@ app.get("/api/db", async (req, res) => {
 });
 
 async function connectAndSeed() {
-  await mongoose.connect(MONGODB_URI);
-  console.log("Connected to MongoDB");
-  const count = await PaymentMethod.countDocuments();
-  if (count === 0) {
-    await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
-    console.log("Seeded default payment method");
+  try {
+    await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, connectTimeoutMS: 30000 });
+    console.log("Connected to MongoDB");
+    const count = await PaymentMethod.countDocuments();
+    if (count === 0) {
+      await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
+      console.log("Seeded default payment method");
+    }
+  } catch (err) {
+    console.error("MongoDB connection error:", err.message);
+    console.error("MongoDB connection error details:", JSON.stringify(err));
   }
 }
 
-connectAndSeed().catch((err) => {
-  console.error("MongoDB connection error:", err.message);
-});
+connectAndSeed();
 
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
