@@ -37,8 +37,20 @@ if (fs.existsSync(adminDist)) {
   });
 }
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok", mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
+app.get("/api/health", async (req, res) => {
+  const state = mongoose.connection.readyState;
+  const status = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
+  let mongoTest = null;
+  if (state === 1) {
+    try { await mongoose.connection.db.admin().ping(); mongoTest = "pong"; } catch (e) { mongoTest = e.message; }
+  }
+  res.json({
+    status: "ok",
+    mongodb: status[state] || state,
+    mongoTest,
+    hasMongoUri: !!process.env.MONGODB_URI,
+    mongoUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 30) + "..." : "none",
+  });
 });
 
 app.use("/api/books", booksRouter);
