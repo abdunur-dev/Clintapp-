@@ -10,3 +10,5 @@ web-build/
 caches/
 .metro-virtual/
 .metro-cache/
+db-export/
+uploads/
