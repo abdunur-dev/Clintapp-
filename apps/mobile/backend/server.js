@@ -57,18 +57,20 @@ app.get("/api/db", async (req, res) => {
   }
 });
 
-mongoose
-  .connect(MONGODB_URI)
-  .then(async () => {
-    console.log("Connected to MongoDB");
-    const count = await PaymentMethod.countDocuments();
-    if (count === 0) {
-      await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
-      console.log("Seeded default payment method");
-    }
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => {
-    console.error("MongoDB connection error:", err.message);
-    process.exit(1);
-  });
+async function connectAndSeed() {
+  await mongoose.connect(MONGODB_URI);
+  console.log("Connected to MongoDB");
+  const count = await PaymentMethod.countDocuments();
+  if (count === 0) {
+    await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
+    console.log("Seeded default payment method");
+  }
+}
+
+connectAndSeed().catch((err) => {
+  console.error("MongoDB connection error:", err.message);
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+export default app;
