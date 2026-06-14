@@ -37,6 +37,10 @@ if (fs.existsSync(adminDist)) {
   });
 }
 
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", mongodb: mongoose.connection.readyState === 1 ? "connected" : "disconnected" });
+});
+
 app.use("/api/books", booksRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/orders", ordersRouter);
