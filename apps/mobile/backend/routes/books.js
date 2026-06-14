@@ -1,21 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import Book from "../models/Book.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, "..", "uploads"),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
@@ -98,8 +87,7 @@ router.patch("/:id", async (req, res) => {
 router.post("/upload-cover", upload.single("cover"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    const coverUrl = "/uploads/" + req.file.filename;
-    res.json({ coverUrl });
+    res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "File upload to cloud storage not yet configured" });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -1,21 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import PaymentMethod from "../models/PaymentMethod.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, "..", "uploads"),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, "qr-" + unique + path.extname(file.originalname));
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
@@ -58,8 +47,7 @@ router.post("/", async (req, res) => {
 router.post("/upload-qr", upload.single("qr"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    const qrCodeUrl = "/uploads/" + req.file.filename;
-    res.json({ qrCodeUrl });
+    res.json({ qrCodeUrl: "/uploads/" + Date.now() + "-" + req.file.originalname });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

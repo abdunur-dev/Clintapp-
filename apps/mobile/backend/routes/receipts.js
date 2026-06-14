@@ -1,22 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import Receipt from "../models/Receipt.js";
 import Order from "../models/Order.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, "..", "uploads"),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp|bmp/;
@@ -39,11 +28,10 @@ router.post("/upload", upload.single("receipt"), async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    const imagePath = "/uploads/" + req.file.filename;
     const receipt = await Receipt.create({
       orderId,
       userId: USER_ID,
-      imagePath,
+      imagePath: "/uploads/" + Date.now() + "-" + req.file.originalname,
     });
 
     order.status = "confirmed";
