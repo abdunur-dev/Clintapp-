@@ -1,8 +1,11 @@
 import "dotenv/config";
+import dns from "dns";
+dns.setServers(["8.8.8.8", "1.1.1.1"]);
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
 import booksRouter from "./routes/books.js";
@@ -27,7 +30,12 @@ app.use(express.json({ limit: "50mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const adminDist = path.join(__dirname, "..", "admin", "dist");
-app.use(express.static(adminDist));
+if (fs.existsSync(adminDist)) {
+  app.use(express.static(adminDist));
+  app.get("/admin/*", (req, res) => {
+    res.sendFile(path.join(adminDist, "index.html"));
+  });
+}
 
 app.use("/api/books", booksRouter);
 app.use("/api/cart", cartRouter);
@@ -38,10 +46,6 @@ app.use("/api/receipts", receiptsRouter);
 app.use("/api/hadiths", hadithsRouter);
 app.use("/api/translate", translateRouter);
 app.use("/api/payments", paymentsRouter);
-
-app.get("/admin/*", (req, res) => {
-  res.sendFile(path.join(adminDist, "index.html"));
-});
 
 app.get("/api/db", async (req, res) => {
   try {
