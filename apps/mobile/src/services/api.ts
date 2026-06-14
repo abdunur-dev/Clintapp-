@@ -34,6 +34,7 @@ export interface CartItemData {
   price: number;
   quantity: number;
   coverColor?: string;
+  coverUrl?: string;
   iconName?: string;
   category?: string;
 }
@@ -65,6 +66,14 @@ export interface BookmarkData {
   verseNumber: number;
   chapterNumber: number;
   label?: string;
+}
+
+const IMAGE_BASE = API_BASE.replace(/\/api\/?$/, "");
+
+export function getImageUrl(path) {
+  if (!path) return null;
+  if (path.startsWith("http")) return path;
+  return IMAGE_BASE + path;
 }
 
 export const api = {
@@ -168,17 +177,24 @@ export const api = {
     api.patch<any>(`/receipts/${id}/review`, { status, notes }),
 
   // Hadiths
-  getHadiths: (params?: { book?: string; search?: string; limit?: number }) => {
+  getHadiths: (params?: { book?: string; search?: string; limit?: number; page?: number }) => {
     const q = new URLSearchParams();
     if (params?.book) q.set('book', params.book);
     if (params?.search) q.set('search', params.search);
     if (params?.limit) q.set('limit', String(params.limit));
+    if (params?.page) q.set('page', String(params.page));
     const qs = q.toString();
     return api.get<{ hadiths: any[]; total: number; page: number; pages: number }>(`/hadiths${qs ? `?${qs}` : ''}`);
   },
   getHadithBooks: () => api.get<string[]>('/hadiths/books'),
 
+  // Payments
+  getPaymentMethods: () => api.get<any[]>('/payments/active'),
+
   // Translate
   translateText: (text: string, targetLang: 'am' | 'en' = 'am') =>
     api.post<{ translation: string }>('/translate/text', { text, targetLang }),
+
+  scholarlyAnalysis: (text: string, context?: { book?: string; hadithNumber?: number; chapter?: string }) =>
+    api.post<{ result: string; cached: boolean }>('/translate/scholarly', { text, ...context }),
 };

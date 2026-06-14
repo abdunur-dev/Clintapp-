@@ -2,6 +2,7 @@ import React from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -31,6 +32,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
 import { useCartStore } from "../../stores/cartStore";
+import { getImageUrl } from "../../services/api";
 import { FadeInView, ScaleInView } from "../../components/animations";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -108,15 +110,20 @@ function CartItemRow({
   onDecrement: () => void;
 }) {
   const IconComp = ICON_MAP[item.iconName] || BookOpen;
+  const coverSrc = getImageUrl(item.coverUrl);
 
   return (
     <View style={styles.cartItem}>
-      <LinearGradient
-        colors={[item.coverColor || "#2A2B5A", "#1A1B3A"]}
-        style={styles.itemCover}
-      >
-        <IconComp color={COLORS.gold} size={isSmall ? 22 : 28} strokeWidth={1.5} />
-      </LinearGradient>
+      {coverSrc ? (
+        <Image source={{ uri: coverSrc }} style={styles.itemCover} resizeMode="cover" />
+      ) : (
+        <LinearGradient
+          colors={[item.coverColor || "#2A2B5A", "#1A1B3A"]}
+          style={styles.itemCover}
+        >
+          <IconComp color={COLORS.gold} size={isSmall ? 22 : 28} strokeWidth={1.5} />
+        </LinearGradient>
+      )}
 
       <View style={styles.itemInfo}>
         <Text style={styles.itemTitle} numberOfLines={1}>

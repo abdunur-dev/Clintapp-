@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ArrowLeft, Globe } from 'lucide-react-native';
+import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, SHADOWS } from '../theme/theme';
 import { OrnamentalBorder } from './ParchmentPage';
@@ -209,10 +209,7 @@ export default function HadithBookReader({ bookSlug, bookTitle, onBack }) {
                   {translating ? (
                     <ActivityIndicator size="small" color={COLORS.gold} />
                   ) : (
-                    <>
-                      <Globe color={COLORS.gold} size={16} />
-                      <Text style={styles.translateBtnText}>Translate with Gemini</Text>
-                    </>
+                    <Text style={styles.translateBtnText}>አማርኛ</Text>
                   )}
                 </TouchableOpacity>
               )}

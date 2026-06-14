@@ -1,0 +1,88 @@
+import { Router } from "express";
+import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
+import PaymentMethod from "../models/PaymentMethod.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, "..", "uploads"),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "qr-" + unique + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) return cb(null, true);
+    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+  },
+});
+
+const router = Router();
+
+router.get("/", async (req, res) => {
+  try {
+    const methods = await PaymentMethod.find().sort({ createdAt: -1 });
+    res.json(methods);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get("/active", async (req, res) => {
+  try {
+    const methods = await PaymentMethod.find({ isActive: true });
+    res.json(methods);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/", async (req, res) => {
+  try {
+    const method = await PaymentMethod.create(req.body);
+    res.status(201).json(method);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post("/upload-qr", upload.single("qr"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "No file uploaded" });
+    const qrCodeUrl = "/uploads/" + req.file.filename;
+    res.json({ qrCodeUrl });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.put("/:id", async (req, res) => {
+  try {
+    const method = await PaymentMethod.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!method) return res.status(404).json({ error: "Payment method not found" });
+    res.json(method);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const method = await PaymentMethod.findByIdAndDelete(req.params.id);
+    if (!method) return res.status(404).json({ error: "Payment method not found" });
+    res.json({ message: "Payment method deleted" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+export default router;

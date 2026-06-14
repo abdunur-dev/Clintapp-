@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,10 +6,12 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
+import { api } from '../services/api';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const isSmall = SCREEN_WIDTH < 380;
@@ -18,7 +20,7 @@ const PAGE_WIDTH = SCREEN_WIDTH / 2 - 6;
 export function OrnamentalBorder({ children, compact }) {
   const borderColors = [COLORS.gold, COLORS.ornamentBorder, COLORS.goldDim];
   return (
-    <View style={[styles.pageOuter, compact && { width: '100%' }]}>
+    <View style={[styles.pageOuter, compact && { width: '100%', flex: 1 }]}>
       <LinearGradient
         colors={borderColors}
         start={{ x: 0, y: 0 }}
@@ -63,9 +65,25 @@ export default function ParchmentPage({
   scrollRef,
   onScroll,
   compact,
+  translations: externalTranslations,
 }) {
   const { fontSize, isBookmarked, toggleBookmark } = useReaderStore();
   const isRTL = script === 'rtl';
+  const [localTranslations, setLocalTranslations] = useState({});
+  const translations = externalTranslations || localTranslations;
+  const [translatingVerse, setTranslatingVerse] = useState(null);
+
+  const translateVerse = async (verseNum, sourceText, targetLangId) => {
+    setTranslatingVerse(verseNum);
+    const targetLang = targetLangId === 'amharic' ? 'am' : targetLangId === 'arabic' ? 'ar' : 'en';
+    try {
+      const res = await api.translateText(sourceText, targetLang);
+      setLocalTranslations(prev => ({ ...prev, [verseNum]: res.translation }));
+    } catch (_) {}
+    setTranslatingVerse(null);
+  };
+
+  const needsTranslate = verses.length > 0 && !verses[0][lang] && verses[0]['arabic'];
 
   return (
     <OrnamentalBorder compact={compact}>
@@ -78,6 +96,21 @@ export default function ParchmentPage({
         <View style={[styles.langLabel, compact && { position: 'relative', top: 0, right: 0, alignSelf: 'center', marginBottom: 4 }]}>
           <Text style={styles.langText}>{langLabel}</Text>
         </View>
+        {needsTranslate && (
+          <TouchableOpacity
+            onPress={() => translateVerse(verses[0].number, verses[0]['arabic'], lang)}
+            activeOpacity={0.7}
+            style={styles.paneTranslateBtn}
+          >
+            {translatingVerse ? (
+              <ActivityIndicator size="small" color={COLORS.gold} />
+            ) : (
+              <Text style={styles.paneTranslateText}>
+                {lang === 'amharic' ? 'አማርኛ' : lang === 'english' ? 'English' : lang}
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
         {chapterTitle && (
           <Text style={[styles.chapterTitle, isRTL && { textAlign: 'right' }, compact && { fontSize: 10, marginBottom: 4 }]}>
             {chapterTitle}
@@ -92,8 +125,11 @@ export default function ParchmentPage({
           showsVerticalScrollIndicator={false}
         >
           {verses.map((verse) => {
-            const text = verse[lang] || '';
-            if (!text) return null;
+            const translated = translations[verse.number];
+            let text = translated || verse[lang] || '';
+            const isFallback = !text && verse['arabic'];
+            if (isFallback) text = verse['arabic'];
+            const isFallbackTranslate = isFallback && !translated;
             const isSelected = selectedVerse === verse.number;
             const isBookmarkedVerse = isBookmarked(verse.number, chapterNumber, bookId);
 
@@ -116,22 +152,38 @@ export default function ParchmentPage({
                   ]}
                 >
                   <Text style={styles.verseNumberText}>
-                    {toEthiopicNumeral(verse.number)}
+                    {verse.number}
                   </Text>
                 </View>
-                <Text
-                  style={[
-                    styles.verseText,
-                    {
-                      fontSize: fontSize,
-                      fontFamily: lang === 'arabic' ? 'serif' : 'CrimsonPro_400Regular',
-                    },
-                    isRTL && { textAlign: 'right' },
-                    isSelected && styles.verseTextActive,
-                  ]}
-                >
-                  {text}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  {verse.grade ? (
+                    <Text style={[styles.gradeBadge,
+                      verse.grade.toLowerCase().includes('sahih') && styles.gradeSahih,
+                      verse.grade.toLowerCase().includes('da') && styles.gradeDaif,
+                      verse.grade.toLowerCase().includes('hasan') && styles.gradeHasan,
+                    ]}>{verse.grade}</Text>
+                  ) : null}
+                  <Text
+                    style={[
+                      styles.verseText,
+                      isFallbackTranslate && styles.verseTextFallback,
+                      {
+                        fontSize: fontSize,
+                        fontFamily: isFallbackTranslate ? 'serif' : (lang === 'arabic' ? 'serif' : 'CrimsonPro_400Regular'),
+                      },
+                      isRTL && { textAlign: 'right' },
+                      isSelected && styles.verseTextActive,
+                    ]}
+                  >
+                    {text || '...'}
+                  </Text>
+                  {verse.narrator ? (
+                    <Text style={styles.narratorText}>{verse.narrator}</Text>
+                  ) : null}
+                  {isFallbackTranslate && (
+                    <Text style={styles.fallbackBadge}>መልስ</Text>
+                  )}
+                </View>
                 {isBookmarkedVerse && <Text style={styles.bookmarkIndicator}>✦</Text>}
               </TouchableOpacity>
             );
@@ -209,6 +261,25 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     letterSpacing: 1,
   },
+  paneTranslateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.gold + '44',
+    backgroundColor: COLORS.gold + '10',
+    marginBottom: 6,
+  },
+  paneTranslateText: {
+    fontSize: 10,
+    color: COLORS.gold,
+    fontFamily: 'CrimsonPro_700Bold',
+    letterSpacing: 0.5,
+  },
   versesScroll: {
     flex: 1,
   },
@@ -262,6 +333,53 @@ const styles = StyleSheet.create({
   },
   verseTextActive: {
     color: COLORS.goldLight,
+  },
+  verseTextFallback: {
+    opacity: 0.5,
+    fontStyle: 'italic',
+  },
+  fallbackBadge: {
+    fontSize: 7,
+    color: COLORS.goldDim,
+    fontFamily: 'CrimsonPro_400Regular',
+    letterSpacing: 0.5,
+    marginTop: 1,
+  },
+  gradeBadge: {
+    fontSize: 8,
+    fontFamily: 'CrimsonPro_700Bold',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 3,
+    alignSelf: 'flex-start',
+    overflow: 'hidden',
+  },
+  gradeSahih: {
+    color: '#4CAF50',
+    backgroundColor: '#4CAF5022',
+    borderWidth: 0.5,
+    borderColor: '#4CAF5066',
+  },
+  gradeDaif: {
+    color: '#FF9800',
+    backgroundColor: '#FF980022',
+    borderWidth: 0.5,
+    borderColor: '#FF980066',
+  },
+  gradeHasan: {
+    color: '#2196F3',
+    backgroundColor: '#2196F322',
+    borderWidth: 0.5,
+    borderColor: '#2196F366',
+  },
+  narratorText: {
+    fontSize: 8,
+    color: COLORS.goldDim,
+    fontFamily: 'CrimsonPro_400Regular',
+    fontStyle: 'italic',
+    marginTop: 1,
   },
   bookmarkIndicator: {
     fontSize: 10,

@@ -13,6 +13,8 @@ import bookmarksRouter from "./routes/bookmarks.js";
 import receiptsRouter from "./routes/receipts.js";
 import hadithsRouter from "./routes/hadiths.js";
 import translateRouter from "./routes/translate.js";
+import paymentsRouter from "./routes/payments.js";
+import PaymentMethod from "./models/PaymentMethod.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -35,6 +37,7 @@ app.use("/api/bookmarks", bookmarksRouter);
 app.use("/api/receipts", receiptsRouter);
 app.use("/api/hadiths", hadithsRouter);
 app.use("/api/translate", translateRouter);
+app.use("/api/payments", paymentsRouter);
 
 app.get("/admin/*", (req, res) => {
   res.sendFile(path.join(adminDist, "index.html"));
@@ -56,8 +59,13 @@ app.get("/api/db", async (req, res) => {
 
 mongoose
   .connect(MONGODB_URI)
-  .then(() => {
+  .then(async () => {
     console.log("Connected to MongoDB");
+    const count = await PaymentMethod.countDocuments();
+    if (count === 0) {
+      await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
+      console.log("Seeded default payment method");
+    }
     app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   })
   .catch((err) => {

@@ -95,6 +95,7 @@ function App() {
     { id: "receipts", label: "Receipts", icon: "receipts" },
     { id: "hadiths", label: "Hadiths", icon: "books" },
     { id: "books", label: "Books", icon: "books" },
+    { id: "payments", label: "Payments", icon: "receipts" },
     { id: "database", label: "Database", icon: "database" },
   ];
 
@@ -182,6 +183,7 @@ function App() {
           {tab === "receipts" && <ReceiptsPanel />}
           {tab === "hadiths" && <HadithsPanel />}
           {tab === "books" && <BooksPanel />}
+          {tab === "payments" && <PaymentsPanel />}
           {tab === "database" && <DatabasePanel />}
         </div>
       </div>
@@ -399,6 +401,18 @@ function BooksPanel() {
     } catch { alert("Failed"); }
   };
 
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editBook) return;
+    const form = new FormData();
+    form.append("cover", file);
+    try {
+      const res = await fetch(`${API}/books/upload-cover`, { method: "POST", body: form });
+      const data = await res.json();
+      if (data.coverUrl) setEditBook({ ...editBook, coverUrl: data.coverUrl });
+    } catch { alert("Upload failed"); }
+  };
+
   const filtered = books.filter(
     (b) => !search || b.title?.toLowerCase().includes(search.toLowerCase()) || b.author?.toLowerCase().includes(search.toLowerCase()) || b.category?.toLowerCase().includes(search.toLowerCase())
   );
@@ -429,7 +443,7 @@ function BooksPanel() {
             <h3 style={s.sectionTitle}>Import Books JSON</h3>
             <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
           </div>
-          <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder={`[\n  {\n    "title": "My Book",\n    "author": "Author Name",\n    "category": "Fiction",\n    "pages": 200,\n    "price": 199\n  }\n]`} style={s.jsonInput} rows={6} />
+          <textarea value={jsonText} onChange={(e) => setJsonText(e.target.value)} placeholder={`[\n  {\n    "title": "My Book",\n    "author": "Author Name",\n    "category": "Fiction",\n    "pages": 200,\n    "price": 199,\n    "coverUrl": "/uploads/cover.jpg"\n  }\n]`} style={s.jsonInput} rows={6} />
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
             <input ref={fileRef} type="file" accept=".json" onChange={handleFileSelect} style={{ display: "none" }} />
             <button onClick={() => fileRef.current?.click()} style={s.secondaryBtn}>
@@ -479,9 +493,13 @@ function BooksPanel() {
         <div style={s.bookGrid}>
           {filtered.map((book) => (
             <div key={book._id} style={s.bookCard}>
-              <div style={{ ...s.bookColor, backgroundColor: book.color || theme.border }}>
-                <span style={s.bookInitial}>{book.title?.charAt(0) || "?"}</span>
-              </div>
+              {book.coverUrl ? (
+                <img src={UPLOADS + book.coverUrl} alt={book.title} style={{ width: 50, height: 70, borderRadius: 6, objectFit: "cover", flexShrink: 0 }} />
+              ) : (
+                <div style={{ ...s.bookColor, backgroundColor: book.color || theme.border }}>
+                  <span style={s.bookInitial}>{book.title?.charAt(0) || "?"}</span>
+                </div>
+              )}
               <div style={s.bookInfo}>
                 <p style={s.bookTitle}>{book.title}</p>
                 <p style={s.bookAuthor}>{book.author}</p>
@@ -508,8 +526,30 @@ function BooksPanel() {
               <h3 style={{ ...s.sectionTitle, margin: 0 }}>Edit Book</h3>
               <button onClick={() => setEditBook(null)} style={s.iconBtnPlain}><Icon name="x" size={16} color={theme.muted} /></button>
             </div>
+            <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 16 }}>
+              {editBook.coverUrl ? (
+                <img src={UPLOADS + editBook.coverUrl} alt="Cover" style={{ width: 60, height: 84, borderRadius: 6, objectFit: "cover" }} />
+              ) : (
+                <div style={{ width: 60, height: 84, borderRadius: 6, backgroundColor: theme.border, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, color: theme.muted }}>
+                  ?
+                </div>
+              )}
+              <div>
+                <label style={s.uploadLabel}>
+                  <input type="file" accept="image/*" onChange={handleCoverUpload} style={{ display: "none" }} />
+                  <span style={{ ...s.secondaryBtn, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <Icon name="upload" size={12} color={theme.gold} /> Upload Cover
+                  </span>
+                </label>
+                {editBook.coverUrl && (
+                  <button onClick={() => setEditBook({ ...editBook, coverUrl: "" })} style={{ ...s.iconBtnPlain, marginLeft: 8 }}>
+                    <Icon name="x" size={12} color={theme.danger} />
+                  </button>
+                )}
+              </div>
+            </div>
             <div style={s.modalGrid}>
-              {["title", "titleAm", "author", "category", "description", "sample", "color", "iconName", "price", "pages", "chapters", "rating"].map((field) => (
+              {["title", "titleAm", "author", "category", "description", "sample", "color", "iconName", "coverUrl", "price", "pages", "chapters", "rating"].map((field) => (
                 <div key={field} style={field === "description" || field === "sample" ? { gridColumn: "1 / -1" } : {}}>
                   <label style={s.modalLabel}>{field}</label>
                   {field === "description" || field === "sample" ? (
@@ -531,6 +571,158 @@ function BooksPanel() {
   );
 }
 
+/* ─── PAYMENTS ─── */
+function PaymentsPanel() {
+  const [methods, setMethods] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [editMethod, setEditMethod] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ bank: "", accountName: "", accountNumber: "", qrCodeUrl: "", isActive: true });
+  const fileRef = useRef(null);
+
+  useEffect(() => { fetchMethods(); }, []);
+
+  const fetchMethods = async () => {
+    try {
+      const res = await fetch(`${API}/payments`);
+      setMethods(await res.json());
+    } catch { /* ignore */ } finally { setLoading(false); }
+  };
+
+  const handleSave = async () => {
+    try {
+      if (editMethod) {
+        await fetch(`${API}/payments/${editMethod._id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      } else {
+        await fetch(`${API}/payments`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+      }
+      setEditMethod(null);
+      setShowForm(false);
+      setForm({ bank: "", accountName: "", accountNumber: "", qrCodeUrl: "", isActive: true });
+      fetchMethods();
+    } catch { alert("Failed"); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm("Delete this payment method?")) return;
+    try { await fetch(`${API}/payments/${id}`, { method: "DELETE" }); fetchMethods(); } catch { alert("Failed"); }
+  };
+
+  const handleQrUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append("qr", file);
+    try {
+      const res = await fetch(`${API}/payments/upload-qr`, { method: "POST", body: fd });
+      const data = await res.json();
+      if (data.qrCodeUrl) setForm({ ...form, qrCodeUrl: data.qrCodeUrl });
+    } catch { alert("Upload failed"); }
+  };
+
+  const openEdit = (m) => {
+    setEditMethod(m);
+    setForm({ bank: m.bank, accountName: m.accountName, accountNumber: m.accountNumber, qrCodeUrl: m.qrCodeUrl || "", isActive: m.isActive });
+    setShowForm(true);
+  };
+
+  return (
+    <div>
+      <div style={s.toolbar}>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => { setEditMethod(null); setForm({ bank: "", accountName: "", accountNumber: "", qrCodeUrl: "", isActive: true }); setShowForm(!showForm); }} style={showForm ? s.primaryBtn : s.secondaryBtn}>
+            <Icon name="upload" size={12} color={showForm ? theme.bg : theme.gold} /> Add Method
+          </button>
+          <button onClick={fetchMethods} style={s.secondaryBtn}><Icon name="refresh" size={12} color={theme.muted} /></button>
+        </div>
+      </div>
+
+      <div style={s.collectionStats}>
+        <span style={s.collectionStat}><strong>{methods.length}</strong> payment methods</span>
+        {methods.filter((m) => m.isActive).map((m) => (
+          <span key={m._id} style={s.collectionTag}>{m.bank}</span>
+        ))}
+      </div>
+
+      {showForm && (
+        <div style={{ ...s.importSection, marginBottom: 16 }}>
+          <h3 style={s.sectionTitle}>{editMethod ? "Edit" : "Add"} Payment Method</h3>
+          <div style={{ display: "flex", gap: 12, marginTop: 12, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={s.modalLabel}>Bank</label>
+              <input value={form.bank} onChange={(e) => setForm({ ...form, bank: e.target.value })} style={s.modalInput} />
+            </div>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={s.modalLabel}>Account Name</label>
+              <input value={form.accountName} onChange={(e) => setForm({ ...form, accountName: e.target.value })} style={s.modalInput} />
+            </div>
+            <div style={{ flex: "1 1 200px" }}>
+              <label style={s.modalLabel}>Account Number</label>
+              <input value={form.accountNumber} onChange={(e) => setForm({ ...form, accountNumber: e.target.value })} style={s.modalInput} />
+            </div>
+          </div>
+          <div style={{ marginTop: 12, display: "flex", alignItems: "center", gap: 16 }}>
+            {form.qrCodeUrl && (
+              <img src={UPLOADS + form.qrCodeUrl} alt="QR" style={{ width: 80, height: 80, borderRadius: 6, objectFit: "cover" }} />
+            )}
+            <label style={s.uploadLabel}>
+              <input ref={fileRef} type="file" accept="image/*" onChange={handleQrUpload} style={{ display: "none" }} />
+              <span style={{ ...s.secondaryBtn, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <Icon name="upload" size={12} color={theme.gold} /> Upload QR Code
+              </span>
+            </label>
+            {form.qrCodeUrl && (
+              <button onClick={() => setForm({ ...form, qrCodeUrl: "" })} style={s.iconBtnPlain}><Icon name="x" size={12} color={theme.danger} /></button>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: theme.muted, cursor: "pointer" }}>
+              <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} />
+              Active
+            </label>
+          </div>
+          <div style={{ display: "flex", gap: 10, marginTop: 16, justifyContent: "flex-end" }}>
+            <button onClick={() => { setShowForm(false); setEditMethod(null); }} style={s.secondaryBtn}>Cancel</button>
+            <button onClick={handleSave} style={s.primaryBtn}>{editMethod ? "Update" : "Add"} Method</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={s.loadingState}><div style={s.spinner} /><p>Loading...</p></div>
+      ) : methods.length === 0 ? (
+        <div style={s.emptyState}><Icon name="receipts" size={40} color={theme.muted} /><p>No payment methods</p></div>
+      ) : (
+        <div style={s.grid}>
+          {methods.map((m) => (
+            <div key={m._id} style={s.card}>
+              <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: 15, color: theme.text }}>{m.bank}</h4>
+                    <span style={{ ...s.collectionTag, marginTop: 4, display: "inline-block" }}>{m.isActive ? "Active" : "Inactive"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <button onClick={() => openEdit(m)} style={s.smallBtn}><Icon name="edit" size={11} color={theme.gold} /></button>
+                    <button onClick={() => handleDelete(m._id)} style={{ ...s.smallBtn, borderColor: `${theme.danger}33` }}><Icon name="trash" size={11} color={theme.danger} /></button>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+                  {m.qrCodeUrl && (
+                    <img src={UPLOADS + m.qrCodeUrl} alt="QR" style={{ width: 80, height: 80, borderRadius: 6, objectFit: "cover" }} />
+                  )}
+                  <div style={{ fontSize: 12, color: theme.muted, lineHeight: 1.8 }}>
+                    <div><strong style={{ color: theme.text }}>Name:</strong> {m.accountName}</div>
+                    <div><strong style={{ color: theme.text }}>Number:</strong> {m.accountNumber}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── HADITHS ─── */
 function HadithsPanel() {
   const [hadiths, setHadiths] = useState([]);
@@ -546,6 +738,7 @@ function HadithsPanel() {
   const [importing, setImporting] = useState(false);
   const [importMsg, setImportMsg] = useState(null);
   const [importFile, setImportFile] = useState("");
+  const [importUrl, setImportUrl] = useState("");
   const importFileRef = useRef(null);
 
   const searchRef = useRef("");
@@ -556,6 +749,44 @@ function HadithsPanel() {
 
   useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
 
+  function transformSourceHadiths(source) {
+    const bookName = source.metadata?.name?.trim() || "";
+    const sections = source.metadata?.sections || {};
+    const raw = source.hadiths || [];
+    return raw.map((h) => ({
+      book: bookName,
+      chapter: sections[String(h.reference?.book)] || "",
+      chapterId: h.reference?.book ?? null,
+      hadithNumber: h.hadithnumber,
+      arabic: h.text || "",
+      english: h.english || "",
+      amharic: h.amharic || "",
+      grade:
+        Array.isArray(h.grades) && h.grades[0]
+          ? h.grades[0].grade || h.grades[0].name || ""
+          : "",
+      reference: h.reference || {},
+    }));
+  }
+
+  function normalizeHadithData(source) {
+    if (source.metadata && Array.isArray(source.hadiths)) {
+      return transformSourceHadiths(source);
+    }
+    return Array.isArray(source) ? source : [source];
+  }
+
+  const sendBulkImport = async (hadiths) => {
+    const res = await fetch(`${API}/hadiths/bulk`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(hadiths),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Server error`);
+    return data;
+  };
+
   const handleHadithImport = async () => {
     const file = importFileRef.current?.files?.[0];
     if (!file) return;
@@ -563,20 +794,48 @@ function HadithsPanel() {
     setImportMsg(null);
     try {
       const text = await file.text();
-      let parsed = JSON.parse(text);
-      const arr = Array.isArray(parsed) ? parsed : [parsed];
-      const res = await fetch(`${API}/hadiths/bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hadiths: arr }) });
-      const rtext = await res.text();
-      let data;
-      try { data = JSON.parse(rtext); } catch { throw new Error(`Server error: ${rtext.slice(0, 100)}`); }
-      if (!res.ok) throw new Error(data.error);
-      setImportMsg({ type: "success", text: `${data.count} hadith(s) imported from ${file.name}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}` });
+      const source = JSON.parse(text);
+      const hadiths = normalizeHadithData(source);
+      const data = await sendBulkImport(hadiths);
+      const bookLabel = source.metadata?.name || file.name;
+      setImportMsg({
+        type: "success",
+        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}`,
+      });
       setImportFile("");
       importFileRef.current.value = "";
-      setShowImport(false);
       fetchHadiths();
       fetchBooks();
-    } catch (err) { setImportMsg({ type: "error", text: err.message }); } finally { setImporting(false); }
+    } catch (err) {
+      setImportMsg({ type: "error", text: `❌ ${err.message}` });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const handleUrlImport = async () => {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setImportMsg(null);
+    try {
+      const res = await fetch(importUrl);
+      if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
+      const source = await res.json();
+      const hadiths = normalizeHadithData(source);
+      const data = await sendBulkImport(hadiths);
+      const bookLabel = source.metadata?.name || new URL(importUrl).pathname.split("/").pop();
+      setImportMsg({
+        type: "success",
+        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}`,
+      });
+      setImportUrl("");
+      fetchHadiths();
+      fetchBooks();
+    } catch (err) {
+      setImportMsg({ type: "error", text: `❌ ${err.message}` });
+    } finally {
+      setImporting(false);
+    }
   };
 
   const fetchHadiths = useCallback(async () => {
@@ -675,7 +934,8 @@ function HadithsPanel() {
             <h3 style={s.sectionTitle}>Import Hadiths JSON</h3>
             <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: importFile ? 0 : 16 }}>
             <input ref={importFileRef} type="file" accept=".json" onChange={(e) => setImportFile(e.target.files?.[0]?.name || "")} style={{ display: "none" }} />
             <button onClick={() => importFileRef.current?.click()} style={s.secondaryBtn}>
               <Icon name="folder" size={12} color={theme.muted} /> Choose File
@@ -690,7 +950,43 @@ function HadithsPanel() {
               </>
             )}
           </div>
-          {importMsg && <p style={{ color: importMsg.type === "success" ? theme.success : theme.danger, fontSize: 13, marginTop: 8 }}>{importMsg.text}</p>}
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "12px 0" }}>
+            <div style={{ flex: 1, height: 1, background: theme.border }} />
+            <span style={{ fontSize: 11, color: theme.muted, whiteSpace: "nowrap" }}>or import from URL</span>
+            <div style={{ flex: 1, height: 1, background: theme.border }} />
+          </div>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              value={importUrl}
+              onChange={(e) => setImportUrl(e.target.value)}
+              placeholder="https://raw.githubusercontent.com/..."
+              style={{ ...s.searchInput, flex: 1, fontSize: 12 }}
+              onKeyDown={(e) => e.key === "Enter" && handleUrlImport()}
+            />
+            <button
+              onClick={handleUrlImport}
+              disabled={importing || !importUrl.trim()}
+              style={{ ...s.primaryBtn, opacity: importing || !importUrl.trim() ? 0.5 : 1 }}
+            >
+              {importing ? "Importing..." : "Fetch & Import"}
+            </button>
+          </div>
+
+          {importMsg && (
+            <p style={{
+              color: importMsg.type === "success" ? theme.success : theme.danger,
+              fontSize: 13,
+              marginTop: 10,
+              padding: 8,
+              background: importMsg.type === "success" ? `${theme.success}11` : `${theme.danger}11`,
+              borderRadius: 6,
+              border: `1px solid ${importMsg.type === "success" ? `${theme.success}33` : `${theme.danger}33`}`,
+            }}>
+              {importMsg.text}
+            </p>
+          )}
         </div>
       )}
 
@@ -1092,6 +1388,7 @@ const s = {
   modalGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 },
   modalLabel: { fontSize: 10, color: theme.muted, display: "block", marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.5 },
   modalInput: { width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text, fontSize: 12, outline: "none", fontFamily: "inherit", boxSizing: "border-box" },
+  uploadLabel: { cursor: "pointer" },
 
   /* ─── Database ─── */
   dbLayout: { display: "flex", gap: 20, flexDirection: "row" },

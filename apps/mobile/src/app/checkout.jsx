@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -21,7 +21,7 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../theme/theme";
 import { useCartStore } from "../stores/cartStore";
-import { api } from "../services/api";
+import { api, getImageUrl } from "../services/api";
 
 export default function CheckoutScreen() {
   const insets = useSafeAreaInsets();
@@ -31,6 +31,12 @@ export default function CheckoutScreen() {
   const [receiptUri, setReceiptUri] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentMethods, setPaymentMethods] = useState([]);
+  const [qrModal, setQrModal] = useState(null);
+
+  useEffect(() => {
+    api.getPaymentMethods().then(setPaymentMethods).catch(() => {});
+  }, []);
 
   const total = getTotal();
 
@@ -115,17 +121,26 @@ export default function CheckoutScreen() {
           <Text style={styles.paymentTitle}>Payment Instructions</Text>
           <Text style={styles.paymentText}>
             Send the total amount of{" "}
-            <Text style={styles.bold}>ETB {total.toLocaleString()}</Text> to the following
-            account:
+            <Text style={styles.bold}>ETB {total.toLocaleString()}</Text> via one of the
+            methods below:
           </Text>
-          <View style={styles.accountBox}>
-            <Text style={styles.accountLabel}>Bank</Text>
-            <Text style={styles.accountValue}>Commercial Bank of Ethiopia</Text>
-            <Text style={styles.accountLabel}>Account Name</Text>
-            <Text style={styles.accountValue}>Clintapp Books</Text>
-            <Text style={styles.accountLabel}>Account Number</Text>
-            <Text style={styles.accountValue}>1000123456789</Text>
-          </View>
+          {(paymentMethods.length === 0 ? [{ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", qrCodeUrl: null }] : paymentMethods).map((m, i) => (
+            <View key={m._id || i} style={styles.accountBox}>
+              <Text style={styles.accountLabel}>Bank</Text>
+              <Text style={styles.accountValue}>{m.bank}</Text>
+              <Text style={styles.accountLabel}>Account Name</Text>
+              <Text style={styles.accountValue}>{m.accountName}</Text>
+              <Text style={styles.accountLabel}>Account Number</Text>
+              <Text style={styles.accountValue}>{m.accountNumber}</Text>
+              {m.qrCodeUrl && (
+                <TouchableOpacity onPress={() => setQrModal(m.qrCodeUrl)} activeOpacity={0.8} style={{ marginTop: 12, alignSelf: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: COLORS.gold + "18", paddingHorizontal: 20, paddingVertical: 10, borderRadius: RADIUS.pill, borderWidth: 1, borderColor: COLORS.gold + "44" }}>
+                    <Text style={{ fontFamily: "CrimsonPro_700Bold", fontSize: 13, color: COLORS.gold }}>Pay via QR</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          ))}
           <Text style={styles.paymentHint}>
             After sending, take a photo or upload a screenshot of the receipt below.
           </Text>
@@ -175,6 +190,17 @@ export default function CheckoutScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* QR Modal */}
+      {qrModal && (
+        <TouchableOpacity activeOpacity={1} onPress={() => setQrModal(null)} style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.9)", justifyContent: "center", alignItems: "center", zIndex: 100 }]}>
+          <TouchableOpacity activeOpacity={1} onPress={() => {}} style={{ backgroundColor: COLORS.card, borderRadius: RADIUS.lg, padding: 24, alignItems: "center", borderWidth: 1, borderColor: COLORS.gold + "44" }}>
+            <Image source={{ uri: getImageUrl(qrModal) }} style={{ width: 240, height: 240 }} resizeMode="contain" />
+            <Text style={{ fontFamily: "CrimsonPro_700Bold", fontSize: 14, color: COLORS.gold, marginTop: 16 }}>Scan to Pay</Text>
+            <Text style={{ fontFamily: "CrimsonPro_400Regular", fontSize: 12, color: COLORS.muted, marginTop: 4 }}>Tap anywhere to close</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.bottomBar}>
         <TouchableOpacity

@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
@@ -64,27 +65,93 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
     setPanelLang,
   } = useReaderStore();
 
-  // Ensure selected languages are available
+  const [amharicTranslations, setAmharicTranslations] = useState({});
+  const [amharicTranslating, setAmharicTranslating] = useState(false);
+
+  const handleAmharicTranslate = async () => {
+    if (amharicTranslating || !verses.length) return;
+    setAmharicTranslating(true);
+    const batch = {};
+    try {
+      for (const v of verses.slice(0, 5)) {
+        const source = v.arabic || v.geez || v.english || v.greek || v.hebrew;
+        if (!source) continue;
+        const res = await api.translateText(source, 'am');
+        batch[v.number] = res.translation;
+      }
+      setAmharicTranslations(prev => ({ ...prev, ...batch }));
+      setRightLang('amharic');
+    } catch (_) {
+      Alert.alert('Translation Error', 'Could not reach translation server. Check your network connection.');
+    }
+    setAmharicTranslating(false);
+  };
+
+  // Ensure selected languages have content
   useEffect(() => {
     if (availableLangs.length === 0) return;
+    if (isHadith && hadiths.length > 0) {
+      const hasData = (lang) => hadiths.some((h) => h[lang]);
+      const langsWithData = availableLangs.filter(hasData);
+      if (langsWithData.length > 0) {
+        if (!hasData(leftLang)) setLeftLang(langsWithData[0]);
+        if (!hasData(rightLang)) setRightLang(langsWithData[1] || langsWithData[0]);
+        return;
+      }
+    }
     if (!availableLangs.includes(leftLang)) setLeftLang(availableLangs[0]);
     if (!availableLangs.includes(rightLang)) setRightLang(availableLangs[1] || availableLangs[0]);
-  }, [availableLangs.join(',')]);
+  }, [availableLangs.join(','), hadiths.length]);
 
-  // Load hadiths when hadithSlug is provided
+  // Pagination state
+  const [hadithsPage, setHadithsPage] = useState(1);
+  const [hasMorePages, setHasMorePages] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [totalHadiths, setTotalHadiths] = useState(0);
+
+  const HADITH_PAGE_SIZE = 100;
+
+  // Load initial hadiths when hadithSlug is provided
   useEffect(() => {
     if (!isHadith) return;
+    setHadiths([]);
+    setHadithsPage(1);
+    setHasMorePages(false);
+    setTotalHadiths(0);
     setHadithsLoading(true);
-    api.getHadiths({ book: hadithSlug }).then((res) => {
+    api.getHadiths({ book: hadithSlug, limit: HADITH_PAGE_SIZE, page: 1 }).then((res) => {
       if (res.hadiths?.length) {
         setHadiths(res.hadiths);
+        setTotalHadiths(res.total);
+        setHasMorePages(res.page < res.pages);
       } else {
-        setHadiths(LOCAL_HADITHS.filter((h) => h.book === hadithSlug));
+        const local = LOCAL_HADITHS.filter((h) => h.book === hadithSlug);
+        setHadiths(local);
+        setTotalHadiths(local.length);
+        setHasMorePages(false);
       }
     }).catch(() => {
-      setHadiths(LOCAL_HADITHS.filter((h) => h.book === hadithSlug));
+      const local = LOCAL_HADITHS.filter((h) => h.book === hadithSlug);
+      setHadiths(local);
+      setTotalHadiths(local.length);
+      setHasMorePages(false);
     }).finally(() => setHadithsLoading(false));
   }, [hadithSlug]);
+
+  const loadMoreHadiths = async () => {
+    if (loadingMore || !hasMorePages) return;
+    setLoadingMore(true);
+    const nextPage = hadithsPage + 1;
+    try {
+      const res = await api.getHadiths({ book: hadithSlug, limit: HADITH_PAGE_SIZE, page: nextPage });
+      if (res.hadiths?.length) {
+        setHadiths(prev => [...prev, ...res.hadiths]);
+        setHadithsPage(nextPage);
+        setHasMorePages(nextPage < res.pages);
+      }
+    } catch {}
+    setLoadingMore(false);
+  };
 
   const [chapterIndex, setChapterIndex] = useState(0);
   const chapter = book?.chapters[chapterIndex];
@@ -134,6 +201,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
   };
 
   const verses = chapter?.verses || [];
+  console.log('RENDER: verses count', verses.length, 'first verse arabic:', verses[0]?.arabic?.substring?.(0, 30), 'english:', verses[0]?.english?.substring?.(0, 30), 'amharic:', verses[0]?.amharic?.substring?.(0, 30));
 
   if (hadithsLoading) {
     return (
@@ -175,7 +243,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
         <View style={styles.headerCenter}>
           <Text style={styles.headerBookTitle}>{book?.titleEn || ''}</Text>
           {isHadith ? (
-            <Text style={styles.headerSub}>{hadiths.length} hadiths · Authentic</Text>
+            <Text style={styles.headerSub}>Showing {hadiths.length} of {totalHadiths || hadiths.length} hadiths</Text>
           ) : null}
           <View style={styles.chapterNav}>
             <TouchableOpacity
@@ -189,7 +257,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
             </TouchableOpacity>
             <Text style={styles.chapterNavText}>
               {isHadith
-                ? `Hadiths 1–${verses.length}`
+                ? `Hadiths 1–${totalHadiths || verses.length}`
                 : chapter?.title || chapter?.titleEn || `Chapter ${chapterIndex + 1}`
               }
             </Text>
@@ -207,7 +275,18 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
           </View>
         </View>
 
-        <View style={{ width: 42 }} />
+        <TouchableOpacity
+          onPress={handleAmharicTranslate}
+          disabled={amharicTranslating}
+          activeOpacity={0.7}
+          style={styles.amharicBtn}
+        >
+          {amharicTranslating ? (
+            <ActivityIndicator size="small" color={COLORS.gold} />
+          ) : (
+            <Text style={styles.amharicBtnText}>አማርኛ</Text>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Info text for hadiths */}
@@ -283,9 +362,23 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
               scrollRef={bottomScrollRef}
               onScroll={handleBottomScroll}
               compact
+              translations={amharicTranslations}
             />
           </View>
         </View>
+      )}
+
+      {isHadith && verses.length > 0 && hasMorePages && (
+        <TouchableOpacity
+          onPress={loadMoreHadiths}
+          disabled={loadingMore}
+          activeOpacity={0.7}
+          style={styles.loadMoreBtn}
+        >
+          <Text style={styles.loadMoreText}>
+            {loadingMore ? "Loading..." : `Load More (${verses.length}/${totalHadiths})`}
+          </Text>
+        </TouchableOpacity>
       )}
 
       {/* Translation Panel */}
@@ -478,5 +571,36 @@ const styles = StyleSheet.create({
     fontSize: 8,
     color: COLORS.gold + '70',
     letterSpacing: 3,
+  },
+  loadMoreBtn: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    alignSelf: 'center',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.gold + '44',
+    backgroundColor: COLORS.gold + '10',
+    marginBottom: 70,
+  },
+  loadMoreText: {
+    color: COLORS.gold,
+    fontSize: 12,
+    fontFamily: 'CrimsonPro_700Bold',
+  },
+  amharicBtn: {
+    width: 42,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: COLORS.gold + '66',
+    backgroundColor: COLORS.gold + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  amharicBtnText: {
+    fontSize: 11,
+    color: COLORS.gold,
+    fontFamily: 'CrimsonPro_700Bold',
+    letterSpacing: 1,
   },
 });

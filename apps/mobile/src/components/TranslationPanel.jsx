@@ -9,10 +9,10 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
-import { X, ChevronUp, Bookmark, Copy, Share2, PenLine, Headphones, Globe } from 'lucide-react-native';
+import { Bookmark, Copy, Share2, PenLine, Headphones } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
-import { LANGUAGES, getVerseText } from '../data/sacred-texts';
+import { LANGUAGES, getVerseText, getAvailableLangs } from '../data/sacred-texts';
 import { api } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -45,13 +45,17 @@ export default function TranslationPanel({
     }).start();
   }, [panelOpen, slideAnim]);
 
-  const [geminiTranslation, setGeminiTranslation] = useState(null);
-  const [translating, setTranslating] = useState(false);
+  const [analysisResult, setAnalysisResult] = useState(null);
+  const [analysisLoading, setAnalysisLoading] = useState(false);
 
   useEffect(() => {
-    setGeminiTranslation(null);
-    setTranslating(false);
+    setAnalysisResult(null);
+    setAnalysisLoading(false);
   }, [selectedVerse, panelLang]);
+
+  const handleLangSelect = (langId) => {
+    setPanelLang(langId);
+  };
 
   if (!selectedVerse) return null;
 
@@ -65,11 +69,17 @@ export default function TranslationPanel({
   const verseText = getText(panelLang);
   const leftText = getText(leftLang);
   const rightText = getText(rightLang);
-  const languages = LANGUAGES.filter(l =>
-    propVerses
-      ? !!propVerses.find(v => v.number === selectedVerse)?.[l.id]
-      : getVerseText(bookId, chapterNumber, selectedVerse, l.id)
-  );
+
+  const isHadith = !!propVerses;
+  const allBookLangs = isHadith
+    ? LANGUAGES.filter(l => ['arabic', 'english', 'amharic'].includes(l.id))
+    : LANGUAGES.filter(l => {
+        const avail = propVerses
+          ? ['arabic', 'english', 'amharic', 'geez', 'greek', 'hebrew', 'latin']
+          : getAvailableLangs(bookId) || [];
+        return avail.includes(l.id);
+      });
+  const languages = allBookLangs;
   const currentLang = languages.find(l => l.id === panelLang) || languages[0];
   const isBookmarkedVerse = isBookmarked(selectedVerse, chapterNumber, bookId);
 
@@ -119,38 +129,47 @@ export default function TranslationPanel({
               <Text style={styles.panelLangLabel}>
                 {currentLang?.label} — {currentLang?.labelEn}
               </Text>
-              <Text style={styles.panelVerseText}>{verseText}</Text>
 
-              {geminiTranslation ? (
-                <View style={styles.geminiResult}>
-                  <View style={styles.geminiDivider} />
-                  <Text style={styles.geminiLabel}>Gemini Translation — አማርኛ</Text>
-                  <Text style={styles.geminiText}>{geminiTranslation}</Text>
+              {verseText ? (
+                <Text style={styles.panelVerseText}>{verseText}</Text>
+              ) : (
+                <Text style={styles.noDataText}>No content available for this language</Text>
+              )}
+
+              <TouchableOpacity
+                onPress={async () => {
+                  const sourceText = getText(leftLang || 'arabic') || getText('arabic') || verseText;
+                  if (!sourceText) return;
+                  setAnalysisLoading(true);
+                  try {
+                    const res = await api.scholarlyAnalysis(sourceText, { book: bookId || undefined });
+                    setAnalysisResult(res.result);
+                  } catch (_) {
+                    setAnalysisResult('❌ የትንተና አገልግሎት አልተሳካም። እባክዎ በኋላ ይሞክሩ።');
+                  }
+                  setAnalysisLoading(false);
+                }}
+                disabled={analysisLoading}
+                activeOpacity={0.7}
+                style={styles.analysisBtn}
+              >
+                {analysisLoading ? (
+                  <ActivityIndicator size="small" color={COLORS.gold} />
+                ) : (
+                  <>
+                    <Text style={styles.analysisBtnIcon}>📖</Text>
+                    <Text style={styles.analysisBtnText}>ትንተና (Analysis)</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {analysisResult && (
+                <View style={styles.analysisResultBox}>
+                  <ScrollView showsVerticalScrollIndicator={false} style={styles.analysisScroll}>
+                    <Text style={styles.analysisText}>{analysisResult}</Text>
+                  </ScrollView>
                 </View>
-              ) : verseText ? (
-                <TouchableOpacity
-                  onPress={async () => {
-                    setTranslating(true);
-                    try {
-                      const res = await api.translateText(verseText, 'am');
-                      setGeminiTranslation(res.translation);
-                    } catch (_) {}
-                    setTranslating(false);
-                  }}
-                  disabled={translating}
-                  activeOpacity={0.7}
-                  style={styles.translateBtn}
-                >
-                  {translating ? (
-                    <ActivityIndicator size="small" color={COLORS.gold} />
-                  ) : (
-                    <>
-                      <Globe color={COLORS.gold} size={14} />
-                      <Text style={styles.translateBtnText}>Translate with Gemini</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              ) : null}
+              )}
             </View>
 
             {/* Quick language switches */}
@@ -162,7 +181,7 @@ export default function TranslationPanel({
               {availableLangs.map(l => (
                 <TouchableOpacity
                   key={l.id}
-                  onPress={() => setPanelLang(l.id)}
+                  onPress={() => handleLangSelect(l.id)}
                   activeOpacity={0.7}
                   style={[
                     styles.langChip,
@@ -368,7 +387,14 @@ const styles = StyleSheet.create({
   actionLabelActive: {
     color: COLORS.gold,
   },
-  translateBtn: {
+  noDataText: {
+    fontSize: 11,
+    color: COLORS.muted,
+    fontFamily: 'CrimsonPro_400Regular',
+    fontStyle: 'italic',
+    marginTop: SPACING.sm,
+  },
+  analysisBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -378,33 +404,33 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.gold + '44',
-    backgroundColor: COLORS.gold + '10',
+    borderColor: COLORS.gold + '66',
+    backgroundColor: COLORS.manuscriptBg,
   },
-  translateBtnText: {
-    color: COLORS.gold,
+  analysisBtnIcon: {
+    fontSize: 14,
+  },
+  analysisBtnText: {
+    color: COLORS.parchment,
     fontSize: 12,
     fontFamily: 'CrimsonPro_700Bold',
   },
-  geminiResult: {
+  analysisResultBox: {
     marginTop: SPACING.sm,
+    backgroundColor: COLORS.bg + '99',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.gold + '33',
+    padding: SPACING.sm,
+    maxHeight: 240,
   },
-  geminiDivider: {
-    height: 1,
-    backgroundColor: COLORS.goldDim + '30',
-    marginBottom: SPACING.sm,
+  analysisScroll: {
+    flex: 1,
   },
-  geminiLabel: {
-    fontSize: 9,
-    color: COLORS.gold,
-    fontFamily: 'CrimsonPro_700Bold',
-    letterSpacing: 1,
-    marginBottom: 6,
-  },
-  geminiText: {
-    fontSize: 14,
+  analysisText: {
+    fontSize: 12,
     color: COLORS.parchmentDark,
     fontFamily: 'CrimsonPro_400Regular',
-    lineHeight: 22,
+    lineHeight: 20,
   },
 });

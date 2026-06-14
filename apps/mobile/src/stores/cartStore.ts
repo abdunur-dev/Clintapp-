@@ -12,6 +12,7 @@ export interface CartItem {
   coverColor: string;
   iconName: string;
   category: string;
+  coverUrl?: string;
   quantity: number;
 }
 
@@ -47,6 +48,7 @@ export const useCartStore = create<CartState>()(
               coverColor: i.coverColor || '',
               iconName: i.iconName || 'BookOpen',
               category: i.category || '',
+              coverUrl: i.coverUrl || '',
               quantity: i.quantity,
             })),
             loaded: true,

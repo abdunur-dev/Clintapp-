@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "node --watch server.js",
     "start": "node server.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "import-hadiths": "node scripts/import-hadiths.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

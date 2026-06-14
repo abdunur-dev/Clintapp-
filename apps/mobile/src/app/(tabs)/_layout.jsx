@@ -5,9 +5,8 @@ import {
   Home,
   Book,
   Search,
-  ShoppingCart,
   PenTool,
-  User,
+  ShoppingCart,
 } from "lucide-react-native";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -75,19 +74,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="cart"
-        options={{
-          title: "Cart",
-          tabBarIcon: ({ color, focused }) => (
-            <ShoppingCart
-              color={color}
-              size={isSmall ? 18 : isTablet ? 24 : 22}
-              strokeWidth={focused ? 2.5 : 2}
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="notes"
         options={{
           title: "Notes",
@@ -97,11 +83,11 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="cart"
         options={{
-          title: "Profile",
+          title: "Cart",
           tabBarIcon: ({ color }) => (
-            <User color={color} size={isSmall ? 18 : isTablet ? 24 : 22} />
+            <ShoppingCart color={color} size={isSmall ? 18 : isTablet ? 24 : 22} />
           ),
         }}
       />

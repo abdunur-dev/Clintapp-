@@ -2,6 +2,7 @@ import React, { useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -43,8 +44,8 @@ import { useCartStore } from "../../stores/cartStore";
 import { useReaderStore } from "../../stores/readerStore";
 import ManuscriptReader from "../../components/ManuscriptReader";
 import { FadeInView, ScaleInView, ScaleButton } from "../../components/animations";
-import { api } from "../../services/api";
-import { LOCAL_HADITHS } from "../../data/hadiths";
+import { api, getImageUrl } from "../../services/api";
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isSmall = SCREEN_WIDTH < 360;
@@ -72,22 +73,17 @@ export default function BookDetailScreen() {
 
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [hadithPreview, setHadithPreview] = useState([]);
+
 
   useEffect(() => {
-    api.getBook(id).then(setBook).catch(console.error).finally(() => setLoading(false));
+
+    api.getBook(id).then((data) => {
+
+      setBook(data);
+    }).catch((err) => {
+      console.error('Book fetch error:', err);
+    }).finally(() => setLoading(false));
   }, [id]);
-
-  useEffect(() => {
-    if (book?.sacredType === "hadith" && book.bookSlug) {
-      api.getHadiths({ book: book.bookSlug, limit: 4 }).then((res) => {
-        if (res.hadiths?.length) setHadithPreview(res.hadiths);
-      }).catch(() => {
-        const local = LOCAL_HADITHS.filter((h) => h.book === book.bookSlug);
-        if (local.length) setHadithPreview(local.slice(0, 4));
-      });
-    }
-  }, [book]);
 
   const fontSizes = [13, 15, 18];
   const fontSize = fontSizes[fontLevel];
@@ -103,6 +99,7 @@ export default function BookDetailScreen() {
       coverColor: book.color,
       iconName: book.iconName || 'BookOpen',
       category: book.category,
+      coverUrl: book.coverUrl || '',
     });
   }, [book, id, addItem]);
 
@@ -255,52 +252,58 @@ export default function BookDetailScreen() {
             paddingVertical: SPACING.xl,
           }}
         >
-          <LinearGradient
-            colors={[book.color, "#1A1B3A"]}
-            style={{
-              width: 180,
-              height: 260,
-              borderRadius: RADIUS.md,
-              justifyContent: "center",
-              alignItems: "center",
-              borderWidth: 2,
-              borderColor: COLORS.gold + "60",
-              ...SHADOWS.gold,
-            }}
-          >
-            <Icon color={COLORS.gold} size={64} strokeWidth={1.2} />
-            <View
+          {(() => {
+            const coverSrc = getImageUrl(book.coverUrl);
+            if (coverSrc) return <Image source={{ uri: coverSrc }} style={{ width: 180, height: 260, borderRadius: RADIUS.md, borderWidth: 2, borderColor: COLORS.gold + "60" }} resizeMode="cover" />;
+            return (
+            <LinearGradient
+              colors={[book.color, "#1A1B3A"]}
               style={{
-                position: "absolute",
-                bottom: 24,
-                left: 16,
-                right: 16,
+                width: 180,
+                height: 260,
+                borderRadius: RADIUS.md,
+                justifyContent: "center",
+                alignItems: "center",
+                borderWidth: 2,
+                borderColor: COLORS.gold + "60",
+                ...SHADOWS.gold,
               }}
             >
-              <Text
+              <Icon color={COLORS.gold} size={64} strokeWidth={1.2} />
+              <View
                 style={{
-                  color: COLORS.white,
-                  fontFamily: "CrimsonPro_700Bold",
-                  fontSize: 16,
-                  textAlign: "center",
-                  marginBottom: 4,
+                  position: "absolute",
+                  bottom: 24,
+                  left: 16,
+                  right: 16,
                 }}
               >
-                {book.titleAm}
-              </Text>
-              <Text
-                style={{
-                  color: COLORS.gold,
-                  fontFamily: "CrimsonPro_400Regular",
-                  fontSize: 11,
-                  textAlign: "center",
-                  letterSpacing: 1,
-                }}
-              >
-                {book.author.toUpperCase()}
-              </Text>
-            </View>
-          </LinearGradient>
+                <Text
+                  style={{
+                    color: COLORS.white,
+                    fontFamily: "CrimsonPro_700Bold",
+                    fontSize: 16,
+                    textAlign: "center",
+                    marginBottom: 4,
+                  }}
+                >
+                  {book.titleAm}
+                </Text>
+                <Text
+                  style={{
+                    color: COLORS.gold,
+                    fontFamily: "CrimsonPro_400Regular",
+                    fontSize: 11,
+                    textAlign: "center",
+                    letterSpacing: 1,
+                  }}
+                >
+                  {book.author.toUpperCase()}
+                </Text>
+              </View>
+            </LinearGradient>
+            );
+          })()}
         </View>
         </ScaleInView>
 
@@ -410,18 +413,7 @@ export default function BookDetailScreen() {
         </View>
         </FadeInView>
 
-        {book.sacredType === "hadith" ? (
-          <FadeInView delay={500}>
-          <View style={{ marginHorizontal: SPACING.xl, marginBottom: SPACING.lg }}>
-            <Text style={{ fontFamily: "CrimsonPro_700Bold", fontSize: 18, color: COLORS.white, marginBottom: SPACING.md }}>
-              Browse Hadiths
-            </Text>
-            <Text style={{ color: COLORS.mutedLight, fontFamily: "CrimsonPro_400Regular", fontSize: 12, lineHeight: 18 }}>
-              Browse authentic hadiths from {book.title} with Arabic text, English translations, and auto-translate to Amharic.
-            </Text>
-          </View>
-          </FadeInView>
-        ) : (
+        {book.sacredType !== "hadith" && (
           <FadeInView delay={500}>
           <View
             style={{
@@ -600,45 +592,8 @@ export default function BookDetailScreen() {
           </FadeInView>
         )}
 
-        {/* Sample / Hadith Preview */}
+        {book.sacredType !== "hadith" && (
         <FadeInView delay={600}>
-        {book.sacredType === "hadith" && hadithPreview.length > 0 ? (
-          <View style={{ marginHorizontal: SPACING.xl, marginBottom: SPACING.lg }}>
-            <Text style={{ fontFamily: "CrimsonPro_700Bold", fontSize: 18, color: COLORS.white, marginBottom: SPACING.md }}>
-              Preview Hadiths
-            </Text>
-            {hadithPreview.map((h) => (
-              <View key={h._id} style={{
-                backgroundColor: "#1A1520", borderRadius: RADIUS.md,
-                borderWidth: 1, borderColor: "#3A2A30", padding: 14, marginBottom: 10,
-              }}>
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 8 }}>
-                  <Text style={{ fontSize: 8, color: `${COLORS.gold}55`, textTransform: "uppercase", letterSpacing: 1 }}>
-                    {h.chapter}
-                  </Text>
-                  <Text style={{ fontSize: 9, color: `${COLORS.gold}88` }}>#{h.hadithNumber}</Text>
-                </View>
-                <Text style={{
-                  fontSize: isSmall ? 16 : 20, lineHeight: isSmall ? 24 : 32,
-                  color: "#E8DCC8", textAlign: "right", marginBottom: 8, fontWeight: "500",
-                }}>
-                  {h.arabic}
-                </Text>
-                <View style={{ height: 1, backgroundColor: "#2A1E28", marginBottom: 8 }} />
-                {h.english ? (
-                  <Text style={{ fontSize: 12, color: "#C8BFA0", lineHeight: 18, fontStyle: "italic" }}>
-                    "{h.english}"
-                  </Text>
-                ) : null}
-                {h.amharic ? (
-                  <Text style={{ fontSize: 12, color: "#A89880", lineHeight: 18, marginTop: 4 }}>
-                    {h.amharic}
-                  </Text>
-                ) : null}
-              </View>
-            ))}
-          </View>
-        ) : (
           <View
             style={{
               marginHorizontal: SPACING.xl,
@@ -712,8 +667,8 @@ export default function BookDetailScreen() {
               "{book.sample}"
             </Text>
           </View>
-        )}
         </FadeInView>
+        )}
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -828,7 +783,8 @@ export default function BookDetailScreen() {
         </View>
       </View>
 
-      {readerOpen && (
+
+      {readerOpen && book && (
         <View style={StyleSheet.absoluteFill}>
           <ManuscriptReader
             bookId={String(id === 1 ? 'quran' : id === 2 ? 'bible' : 'bible')}

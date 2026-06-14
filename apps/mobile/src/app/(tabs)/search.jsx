@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   TextInput,
@@ -9,7 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   Search,
   BookOpen,
@@ -27,7 +28,7 @@ import {
 } from "@expo-google-fonts/crimson-pro";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
-import { api } from "../../services/api";
+import { api, getImageUrl } from "../../services/api";
 
 
 const TRENDING = [];
@@ -68,7 +69,8 @@ function StarField() {
 export default function SearchScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const params = useLocalSearchParams();
+  const [query, setQuery] = useState(params.q || "");
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [allBooks, setAllBooks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -156,7 +158,7 @@ export default function SearchScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search books, authors, topics…"
+            placeholder="Search books, authors, or topics"
             placeholderTextColor={COLORS.muted}
             style={{
               flex: 1,
@@ -236,19 +238,25 @@ export default function SearchScreen() {
                     alignItems: "center",
                   }}
                 >
-                  <LinearGradient
-                    colors={["#2A2B5A", "#1A1B3A"]}
-                    style={{
-                      width: 48,
-                      height: 64,
-                      borderRadius: 8,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      marginRight: 14,
-                    }}
-                  >
-                    {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
-                  </LinearGradient>
+                  {(() => {
+                    const coverSrc = getImageUrl(book.coverUrl);
+                    if (coverSrc) return <Image source={{ uri: coverSrc }} style={{ width: 48, height: 64, borderRadius: 8, marginRight: 14 }} resizeMode="cover" />;
+                    return (
+                    <LinearGradient
+                      colors={["#2A2B5A", "#1A1B3A"]}
+                      style={{
+                        width: 48,
+                        height: 64,
+                        borderRadius: 8,
+                        justifyContent: "center",
+                        alignItems: "center",
+                        marginRight: 14,
+                      }}
+                    >
+                      {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
+                    </LinearGradient>
+                    );
+                  })()}
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
@@ -476,6 +484,10 @@ export default function SearchScreen() {
                   alignItems: "center",
                 }}
               >
+                {(() => {
+                  const coverSrc = getImageUrl(book.coverUrl);
+                  if (coverSrc) return <Image source={{ uri: coverSrc }} style={{ width: 48, height: 64, borderRadius: 8, marginRight: 14 }} resizeMode="cover" />;
+                  return (
                 <LinearGradient
                   colors={["#2A2B5A", "#1A1B3A"]}
                   style={{
@@ -489,6 +501,8 @@ export default function SearchScreen() {
                 >
                   {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
                 </LinearGradient>
+                  );
+                })()}
                 <View style={{ flex: 1 }}>
                   <Text
                     style={{

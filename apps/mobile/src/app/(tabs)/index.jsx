@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -26,22 +27,34 @@ import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
 import { CartButton } from "../../components/CartButton";
 import { FadeInView, ScaleInView, SlideUpView } from "../../components/animations";
-import { api } from "../../services/api";
+import { api, getImageUrl } from "../../services/api";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
 const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 const categories = [
-  { id: "islamic", title: "እስልምና", subtitle: "Islamic", icon: Moon },
   {
     id: "christianity",
     title: "ክርስትና",
     subtitle: "Christianity",
     icon: Church,
+    subs: ["Church History", "Patristics", "66 & 81 Bible", "Christian Books"],
   },
-  { id: "philosophy", title: "ፍልስፍና", subtitle: "Philosophy", icon: Feather },
-  { id: "fiction", title: "ልብ ወለድ", subtitle: "Fiction", icon: BookOpen },
+  {
+    id: "philosophy",
+    title: "ፍልስፍና",
+    subtitle: "Philosophy",
+    icon: Feather,
+    subs: ["Philosophy", "Religious Responses"],
+  },
+  {
+    id: "fiction",
+    title: "ልብ ወለድ",
+    subtitle: "Fiction",
+    icon: BookOpen,
+    subs: ["English Fiction", "Amharic Fiction"],
+  },
 ];
 
 function StarField() {
@@ -107,27 +120,34 @@ export default function HomeScreen() {
           paddingBottom: SPACING.lg,
         }}
       >
-        <View style={{ alignItems: "center" }}>
-          <Text
-            style={{
-              fontFamily: "CrimsonPro_700Bold",
-              fontSize: 22,
-              color: COLORS.gold,
-              letterSpacing: 2,
-            }}
-          >
-            ንባብ ቤት
-          </Text>
-          <Text
-            style={{
-              fontFamily: "CrimsonPro_400Regular",
-              fontSize: 10,
-              color: COLORS.muted,
-              letterSpacing: 3,
-            }}
-          >
-            HOUSE OF READING
-          </Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <Image
+            source={require("../../../assets/images/Logo.png")}
+            style={{ width: 40, height: 40, borderRadius: 8 }}
+            resizeMode="contain"
+          />
+          <View>
+            <Text
+              style={{
+                fontFamily: "CrimsonPro_700Bold",
+                fontSize: 20,
+                color: COLORS.gold,
+                letterSpacing: 1,
+              }}
+            >
+              ንባብ ቤት
+            </Text>
+            <Text
+              style={{
+                fontFamily: "CrimsonPro_400Regular",
+                fontSize: 8,
+                color: COLORS.muted,
+                letterSpacing: 2,
+              }}
+            >
+              NBAB-BET
+            </Text>
+          </View>
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
@@ -256,7 +276,55 @@ export default function HomeScreen() {
           </View>
         </View>
 
-
+        {/* Sub-categories for active pillar */}
+        {(() => {
+          const active = categories.find((c) => c.id === activeCategory);
+          if (!active) return null;
+          return (
+            <SlideUpView delay={250}>
+            <View style={{ paddingHorizontal: SPACING.xl, marginTop: SPACING.lg }}>
+              <Text
+                style={{
+                  fontFamily: "CrimsonPro_700Bold",
+                  fontSize: 13,
+                  color: COLORS.muted,
+                  letterSpacing: 2,
+                  marginBottom: SPACING.sm,
+                }}
+              >
+                {active.subtitle.toUpperCase()} · CATEGORIES
+              </Text>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
+                {active.subs.map((sub) => (
+                  <TouchableOpacity
+                    key={sub}
+                    onPress={() => router.push(`/search?q=${encodeURIComponent(sub)}`)}
+                    activeOpacity={0.7}
+                    style={{
+                      paddingHorizontal: 16,
+                      paddingVertical: 8,
+                      borderRadius: RADIUS.pill,
+                      backgroundColor: COLORS.card,
+                      borderWidth: 1,
+                      borderColor: COLORS.cardBorder,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: "CrimsonPro_700Bold",
+                        fontSize: 12,
+                        color: COLORS.gold,
+                      }}
+                    >
+                      {sub}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            </SlideUpView>
+          );
+        })()}
 
         {/* Continue Reading */}
         <SlideUpView delay={300}>
@@ -322,25 +390,31 @@ export default function HomeScreen() {
                 ...SHADOWS.card,
               }}
             >
-              <LinearGradient
-                colors={["#2A2B5A", "#1A1B3A"]}
-                style={{
-                  width: 56,
-                  height: 78,
-                  borderRadius: RADIUS.md,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginRight: SPACING.lg,
-                  borderWidth: 1,
-                  borderColor: COLORS.gold + "30",
-                }}
-              >
-                {React.createElement(ICON_MAP[book.iconName] || BookOpen, {
-                  color: COLORS.gold,
-                  size: 24,
-                  strokeWidth: 1.5,
-                })}
-              </LinearGradient>
+              {(() => {
+                const coverSrc = getImageUrl(book.coverUrl);
+                if (coverSrc) return <Image source={{ uri: coverSrc }} style={{ width: 56, height: 78, borderRadius: RADIUS.md, marginRight: SPACING.lg }} resizeMode="cover" />;
+                return (
+                <LinearGradient
+                  colors={["#2A2B5A", "#1A1B3A"]}
+                  style={{
+                    width: 56,
+                    height: 78,
+                    borderRadius: RADIUS.md,
+                    justifyContent: "center",
+                    alignItems: "center",
+                    marginRight: SPACING.lg,
+                    borderWidth: 1,
+                    borderColor: COLORS.gold + "30",
+                  }}
+                >
+                  {React.createElement(ICON_MAP[book.iconName] || BookOpen, {
+                    color: COLORS.gold,
+                    size: 24,
+                    strokeWidth: 1.5,
+                  })}
+                </LinearGradient>
+                );
+              })()}
 
               <View style={{ flex: 1 }}>
                 <Text

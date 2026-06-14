@@ -10,6 +10,7 @@ const cartItemSchema = new mongoose.Schema(
     price: { type: Number, required: true },
     quantity: { type: Number, default: 1, min: 1 },
     coverColor: { type: String, default: "" },
+    coverUrl: { type: String, default: "" },
     iconName: { type: String, default: "BookOpen" },
     category: { type: String, default: "" },
   },
