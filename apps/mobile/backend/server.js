@@ -43,6 +43,8 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     mongodb: status[state] || state,
     hasMongoUri: !!process.env.MONGODB_URI,
+    cloudinary: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME || null,
   });
 });
 

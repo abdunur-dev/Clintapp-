@@ -87,13 +87,18 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-router.post("/upload-cover", upload.single("cover"), async (req, res) => {
+router.post("/upload-cover", (req, res, next) => {
+  upload.single("cover")(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message, type: "multer_error" });
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
     if (hasCloudinary) {
       res.json({ coverUrl: req.file.path });
     } else {
-      res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "Cloudinary not configured — set CLOUDINARY env vars" });
+      res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "Cloudinary not configured" });
     }
   } catch (err) {
     res.status(400).json({ error: err.message });
