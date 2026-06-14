@@ -3,18 +3,23 @@ import multer from "multer";
 import path from "path";
 import Receipt from "../models/Receipt.js";
 import Order from "../models/Order.js";
+import { createUploader } from "../config/cloudinary.js";
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp|bmp/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext && mime) return cb(null, true);
-    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-  },
-});
+const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+
+const upload = hasCloudinary
+  ? createUploader("receipts")
+  : multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = /jpeg|jpg|png|gif|webp|bmp/;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        const mime = allowed.test(file.mimetype);
+        if (ext && mime) return cb(null, true);
+        cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+      },
+    });
 
 const router = Router();
 const USER_ID = "anonymous";
@@ -28,10 +33,11 @@ router.post("/upload", upload.single("receipt"), async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
+    const imagePath = hasCloudinary ? req.file.path : "/uploads/" + Date.now() + "-" + req.file.originalname;
     const receipt = await Receipt.create({
       orderId,
       userId: USER_ID,
-      imagePath: "/uploads/" + Date.now() + "-" + req.file.originalname,
+      imagePath,
     });
 
     order.status = "confirmed";

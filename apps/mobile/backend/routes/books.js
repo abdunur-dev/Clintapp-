@@ -2,26 +2,29 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import Book from "../models/Book.js";
+import { createUploader } from "../config/cloudinary.js";
 
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext || mime) return cb(null, true);
-    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-  },
-});
+const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+
+const upload = hasCloudinary
+  ? createUploader("covers")
+  : multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        const mime = allowed.test(file.mimetype);
+        if (ext || mime) return cb(null, true);
+        cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+      },
+    });
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const { category } = req.query;
-    const filter = category ? { category } : {};
-    const books = await Book.find(filter).sort({ createdAt: -1 });
+    const books = await Book.find().sort({ createdAt: -1 });
     res.json(books);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -87,7 +90,11 @@ router.patch("/:id", async (req, res) => {
 router.post("/upload-cover", upload.single("cover"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "File upload to cloud storage not yet configured" });
+    if (hasCloudinary) {
+      res.json({ coverUrl: req.file.path });
+    } else {
+      res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "Cloudinary not configured — set CLOUDINARY env vars" });
+    }
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
