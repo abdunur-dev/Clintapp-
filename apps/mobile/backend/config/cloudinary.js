@@ -23,8 +23,10 @@ function createUploader(folder, allowedFormats = ["jpg", "jpeg", "png", "gif", "
     storage,
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (req, file, cb) => {
-      const ext = allowedFormats.some((f) => file.mimetype.includes(f));
-      if (ext) return cb(null, true);
+      const ext = path.extname(file.originalname).toLowerCase().replace(".", "");
+      if (allowedFormats.includes(ext)) return cb(null, true);
+      const mimeMatch = allowedFormats.some((f) => file.mimetype === `image/${f}` || file.mimetype === `image/${f === "jpg" ? "jpeg" : f}`);
+      if (mimeMatch) return cb(null, true);
       cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
     },
   });
