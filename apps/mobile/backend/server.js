@@ -15,7 +15,6 @@ import receiptsRouter from "./routes/receipts.js";
 import hadithsRouter from "./routes/hadiths.js";
 import translateRouter from "./routes/translate.js";
 import paymentsRouter from "./routes/payments.js";
-import PaymentMethod from "./models/PaymentMethod.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,19 +36,13 @@ if (fs.existsSync(adminDist)) {
   });
 }
 
-app.get("/api/health", async (req, res) => {
+app.get("/api/health", (req, res) => {
   const state = mongoose.connection.readyState;
   const status = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
-  let mongoTest = null;
-  if (state === 1) {
-    try { await mongoose.connection.db.admin().ping(); mongoTest = "pong"; } catch (e) { mongoTest = e.message; }
-  }
   res.json({
     status: "ok",
     mongodb: status[state] || state,
-    mongoTest,
     hasMongoUri: !!process.env.MONGODB_URI,
-    mongoUriPrefix: process.env.MONGODB_URI ? process.env.MONGODB_URI.substring(0, 30) + "..." : "none",
   });
 });
 
@@ -77,24 +70,16 @@ app.get("/api/db", async (req, res) => {
   }
 });
 
-async function connectAndSeed() {
-  try {
-    await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, connectTimeoutMS: 30000 });
-    console.log("Connected to MongoDB");
-    const count = await PaymentMethod.countDocuments();
-    if (count === 0) {
-      await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
-      console.log("Seeded default payment method");
-    }
-  } catch (err) {
-    console.error("MongoDB connection error:", err.message);
-    console.error("MongoDB connection error details:", JSON.stringify(err));
-  }
-}
-
-connectAndSeed();
-
 if (process.env.NODE_ENV !== "production") {
+  async function connectLocal() {
+    try {
+      await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, connectTimeoutMS: 30000 });
+      console.log("Connected to MongoDB");
+    } catch (err) {
+      console.error("MongoDB connection error:", err.message);
+    }
+  }
+  connectLocal();
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
 
