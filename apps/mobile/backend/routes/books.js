@@ -1,38 +1,30 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
-import { fileURLToPath } from "url";
 import Book from "../models/Book.js";
+import { createUploader } from "../config/cloudinary.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
 
-const storage = multer.diskStorage({
-  destination: path.join(__dirname, "..", "uploads"),
-  filename: (req, file, cb) => {
-    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext || mime) return cb(null, true);
-    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-  },
-});
+const upload = hasCloudinary
+  ? createUploader("covers")
+  : multer({
+      storage: multer.memoryStorage(),
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (req, file, cb) => {
+        const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+        const mime = allowed.test(file.mimetype);
+        if (ext || mime) return cb(null, true);
+        cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+      },
+    });
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const { category } = req.query;
-    const filter = category ? { category } : {};
-    const books = await Book.find(filter).sort({ createdAt: -1 });
+    const books = await Book.find().sort({ createdAt: -1 });
     res.json(books);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -95,11 +87,19 @@ router.patch("/:id", async (req, res) => {
   }
 });
 
-router.post("/upload-cover", upload.single("cover"), async (req, res) => {
+router.post("/upload-cover", (req, res, next) => {
+  upload.single("cover")(req, res, (err) => {
+    if (err) return res.status(400).json({ error: err.message, type: "multer_error" });
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    const coverUrl = "/uploads/" + req.file.filename;
-    res.json({ coverUrl });
+    if (hasCloudinary) {
+      res.json({ coverUrl: req.file.path });
+    } else {
+      res.json({ coverUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "Cloudinary not configured" });
+    }
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
