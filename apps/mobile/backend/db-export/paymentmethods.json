@@ -1,0 +1,13 @@
+[
+  {
+    "_id": "6a2f175fa16c4c98e5a2e28e",
+    "bank": "Commercial Bank of Ethiopia",
+    "accountName": "Nbab-Bet Books",
+    "accountNumber": "1000123456789",
+    "qrCodeUrl": "/uploads/qr-1781471153072-582273744.png",
+    "isActive": true,
+    "createdAt": "2026-06-14T21:04:31.466Z",
+    "updatedAt": "2026-06-14T21:05:54.549Z",
+    "__v": 0
+  }
+]

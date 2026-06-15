@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "6a2f11f7f5e2f4960c7368b1",
+    "userId": "anonymous",
+    "bookId": "6a2d925c0cfe60611e7f6b6c",
+    "title": "Quran — Amharic",
+    "titleAm": "ቅዱስ ቁርአን",
+    "author": "Translation",
+    "price": 299,
+    "quantity": 1,
+    "coverColor": "#4A8C5C",
+    "iconName": "Moon",
+    "category": "Islamic",
+    "createdAt": "2026-06-14T20:41:27.651Z",
+    "updatedAt": "2026-06-14T20:41:27.651Z",
+    "__v": 0
+  },
+  {
+    "_id": "6a2f1843a16c4c98e5a2e2b6",
+    "userId": "anonymous",
+    "bookId": "6a2dd571541ce3f6945b2988",
+    "title": "Jami At Tirmidhi",
+    "titleAm": "",
+    "author": "",
+    "price": 2000,
+    "quantity": 1,
+    "coverColor": "#2A5C3A",
+    "coverUrl": "",
+    "iconName": "BookOpen",
+    "category": "Hadith",
+    "createdAt": "2026-06-14T21:08:19.008Z",
+    "updatedAt": "2026-06-14T21:08:19.008Z",
+    "__v": 0
+  }
+]

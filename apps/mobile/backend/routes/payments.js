@@ -1,30 +1,36 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import { fileURLToPath } from "url";
 import PaymentMethod from "../models/PaymentMethod.js";
-import { createUploader } from "../config/cloudinary.js";
 
-const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const upload = hasCloudinary
-  ? createUploader("qr-codes")
-  : multer({
-      storage: multer.memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
-        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-        const mime = allowed.test(file.mimetype);
-        if (ext || mime) return cb(null, true);
-        cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-      },
-    });
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, "..", "uploads"),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, "qr-" + unique + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /\.(jpg|jpeg|png|gif|webp)$/i;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) return cb(null, true);
+    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+  },
+});
 
 const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const methods = await PaymentMethod.find().sort({ isActive: -1, bank: 1 });
+    const methods = await PaymentMethod.find().sort({ createdAt: -1 });
     res.json(methods);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -52,11 +58,8 @@ router.post("/", async (req, res) => {
 router.post("/upload-qr", upload.single("qr"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "No file uploaded" });
-    if (hasCloudinary) {
-      res.json({ qrCodeUrl: req.file.path });
-    } else {
-      res.json({ qrCodeUrl: "/uploads/" + Date.now() + "-" + req.file.originalname, note: "Cloudinary not configured" });
-    }
+    const qrCodeUrl = "/uploads/" + req.file.filename;
+    res.json({ qrCodeUrl });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -1,25 +1,31 @@
 import { Router } from "express";
 import multer from "multer";
 import path from "path";
+import { fileURLToPath } from "url";
 import Receipt from "../models/Receipt.js";
 import Order from "../models/Order.js";
-import { createUploader } from "../config/cloudinary.js";
 
-const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const upload = hasCloudinary
-  ? createUploader("receipts")
-  : multer({
-      storage: multer.memoryStorage(),
-      limits: { fileSize: 10 * 1024 * 1024 },
-      fileFilter: (req, file, cb) => {
-        const allowed = /jpeg|jpg|png|gif|webp|bmp/;
-        const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-        const mime = allowed.test(file.mimetype);
-        if (ext && mime) return cb(null, true);
-        cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
-      },
-    });
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, "..", "uploads"),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|bmp/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) return cb(null, true);
+    cb(new Error("Only image files (jpg, png, gif, webp) are allowed"));
+  },
+});
 
 const router = Router();
 const USER_ID = "anonymous";
@@ -33,7 +39,7 @@ router.post("/upload", upload.single("receipt"), async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ error: "Order not found" });
 
-    const imagePath = hasCloudinary ? req.file.path : "/uploads/" + Date.now() + "-" + req.file.originalname;
+    const imagePath = "/uploads/" + req.file.filename;
     const receipt = await Receipt.create({
       orderId,
       userId: USER_ID,

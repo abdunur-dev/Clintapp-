@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 
 import booksRouter from "./routes/books.js";
@@ -15,6 +14,7 @@ import receiptsRouter from "./routes/receipts.js";
 import hadithsRouter from "./routes/hadiths.js";
 import translateRouter from "./routes/translate.js";
 import paymentsRouter from "./routes/payments.js";
+import PaymentMethod from "./models/PaymentMethod.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -22,31 +22,12 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/clintapp";
 
-mongoose.set("bufferCommands", false);
-
 app.use(cors({ origin: process.env.CORS_ORIGIN || "*" }));
 app.use(express.json({ limit: "50mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 const adminDist = path.join(__dirname, "..", "admin", "dist");
-if (fs.existsSync(adminDist)) {
-  app.use(express.static(adminDist));
-  app.get("/admin/*", (req, res) => {
-    res.sendFile(path.join(adminDist, "index.html"));
-  });
-}
-
-app.get("/api/health", (req, res) => {
-  const state = mongoose.connection.readyState;
-  const status = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
-  res.json({
-    status: "ok",
-    mongodb: status[state] || state,
-    hasMongoUri: !!process.env.MONGODB_URI,
-    cloudinary: !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET),
-    cloudName: process.env.CLOUDINARY_CLOUD_NAME || null,
-  });
-});
+app.use(express.static(adminDist));
 
 app.use("/api/books", booksRouter);
 app.use("/api/cart", cartRouter);
@@ -57,6 +38,10 @@ app.use("/api/receipts", receiptsRouter);
 app.use("/api/hadiths", hadithsRouter);
 app.use("/api/translate", translateRouter);
 app.use("/api/payments", paymentsRouter);
+
+app.get("/admin/*", (req, res) => {
+  res.sendFile(path.join(adminDist, "index.html"));
+});
 
 app.get("/api/db", async (req, res) => {
   try {
@@ -72,17 +57,20 @@ app.get("/api/db", async (req, res) => {
   }
 });
 
-if (process.env.NODE_ENV !== "production") {
-  async function connectLocal() {
-    try {
-      await mongoose.connect(MONGODB_URI, { serverSelectionTimeoutMS: 30000, connectTimeoutMS: 30000 });
-      console.log("Connected to MongoDB");
-    } catch (err) {
-      console.error("MongoDB connection error:", err.message);
-    }
+async function connectAndSeed() {
+  await mongoose.connect(MONGODB_URI);
+  console.log("Connected to MongoDB");
+  const count = await PaymentMethod.countDocuments();
+  if (count === 0) {
+    await PaymentMethod.create({ bank: "Commercial Bank of Ethiopia", accountName: "Nbab-Bet Books", accountNumber: "1000123456789", isActive: true });
+    console.log("Seeded default payment method");
   }
-  connectLocal();
-  app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
+
+connectAndSeed().catch((err) => {
+  console.error("MongoDB connection error:", err.message);
+});
+
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 
 export default app;

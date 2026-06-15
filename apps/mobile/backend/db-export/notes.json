@@ -1,0 +1,16 @@
+[
+  {
+    "_id": "6a2f17ffa16c4c98e5a2e2ab",
+    "userId": "anonymous",
+    "title": "Hey",
+    "content": "Hey howdy everything is going well",
+    "type": "note",
+    "tag": "Personal",
+    "bookId": null,
+    "verseRef": "",
+    "color": "#C9A84C",
+    "createdAt": "2026-06-14T21:07:11.440Z",
+    "updatedAt": "2026-06-14T21:07:11.440Z",
+    "__v": 0
+  }
+]
