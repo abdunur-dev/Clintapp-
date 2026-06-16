@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bulk Hadith Import</title>
+<style>
+body { background: #0B0C1A; color: #fff; font-family: system-ui, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+h1 { color: #C9A84C; font-size: 20px; }
+label { display: block; margin: 16 0 6; font-size: 12; color: #A0A0C0; }
+input, textarea { width: 100%; padding: 8; border-radius: 6; border: 1px solid #252650; background: #13142A; color: #fff; font-size: 13; box-sizing: border-box; }
+button { margin-top: 12; padding: 10 24; border-radius: 8; border: none; background: #C9A84C; color: #0B0C1A; font-weight: 700; cursor: pointer; font-size: 13; }
+button:disabled { opacity: 0.5; }
+#log { margin-top: 16; font-size: 12; white-space: pre-wrap; font-family: monospace; }
+.success { color: #4A8C5C; }
+.error { color: #E05555; }
+.info { color: #A0A0C0; }
+.file-info { margin: 8 0; font-size: 12; color: #7878A0; }
+progress { width: 100%; height: 8; border-radius: 4; margin-top: 8; }
+</style>
+</head>
+<body>
+<h1>Bulk Hadith Import</h1>
+
+<label>Backend API URL</label>
+<input id="apiUrl" value="https://clintapp-backend.vercel.app/api" />
+
+<label>Choose JSON file (hadith-api format)</label>
+<input type="file" id="fileInput" accept=".json" />
+
+<div class="file-info" id="fileInfo"></div>
+
+<button id="importBtn" disabled>Import</button>
+<progress id="progress" value="0" max="100"></progress>
+<div id="log"></div>
+
+<script>
+const apiUrl = document.getElementById('apiUrl');
+const fileInput = document.getElementById('fileInput');
+const importBtn = document.getElementById('importBtn');
+const progress = document.getElementById('progress');
+const log = document.getElementById('log');
+const fileInfo = document.getElementById('fileInfo');
+
+function detectIsEnglish(source) {
+  const first = source.hadiths?.[0]?.text || '';
+  if (!first) return false;
+  return !/[\u0600-\u06FF]/.test(first);
+}
+
+function transformHadiths(source) {
+  const bookName = source.metadata?.name?.trim() || '';
+  const sections = source.metadata?.sections || {};
+  const raw = source.hadiths || [];
+  const isEnglish = detectIsEnglish(source);
+  return raw.map(h => ({
+    book: bookName,
+    chapter: sections[String(h.reference?.book)] || '',
+    chapterId: h.reference?.book ?? null,
+    hadithNumber: h.hadithnumber,
+    arabic: isEnglish ? '' : (h.text || ''),
+    english: isEnglish ? (h.text || '') : (h.english || ''),
+    amharic: h.amharic || '',
+    grade: Array.isArray(h.grades) && h.grades[0] ? (h.grades[0].grade || h.grades[0].name || '') : '',
+    reference: h.reference || {},
+  }));
+}
+
+function normalize(source) {
+  if (source.metadata && Array.isArray(source.hadiths)) return transformHadiths(source);
+  return Array.isArray(source) ? source : [source];
+}
+
+function appendLog(msg, type = 'info') {
+  const div = document.createElement('div');
+  div.className = type;
+  div.textContent = msg;
+  log.appendChild(div);
+}
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files?.[0];
+  if (file) {
+    fileInfo.textContent = `${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+    importBtn.disabled = false;
+  } else {
+    fileInfo.textContent = '';
+    importBtn.disabled = true;
+  }
+});
+
+importBtn.addEventListener('click', async () => {
+  const file = fileInput.files?.[0];
+  if (!file) return;
+  
+  importBtn.disabled = true;
+  log.innerHTML = '';
+  progress.value = 0;
+  
+  try {
+    const text = await file.text();
+    const source = JSON.parse(text);
+    const hadiths = normalize(source);
+    const total = hadiths.length;
+    const bookLabel = source.metadata?.name || file.name;
+    
+    appendLog(`Parsed ${total} hadiths from "${bookLabel}"`, 'info');
+    appendLog(`Detected: ${detectIsEnglish(source) ? 'English' : 'Arabic'} edition`, 'info');
+    
+    const BATCH = 500;
+    let imported = 0;
+    let skipped = 0;
+    const url = apiUrl.value.replace(/\/$/, '');
+    
+    for (let i = 0; i < total; i += BATCH) {
+      const batch = hadiths.slice(i, i + BATCH);
+      const pct = Math.round(i / total * 100);
+      progress.value = pct;
+      
+      appendLog(`Sending batch ${Math.floor(i/BATCH)+1}/${Math.ceil(total/BATCH)} (${batch.length} hadiths)...`, 'info');
+      
+      const res = await fetch(`${url}/hadiths/bulk`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(batch),
+      });
+      
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
+      }
+      
+      const data = await res.json();
+      imported += data.count || 0;
+      skipped += data.skipped || 0;
+      
+      appendLog(`  ✓ ${data.count} imported${data.skipped ? `, ${data.skipped} skipped` : ''}`, 'success');
+    }
+    
+    progress.value = 100;
+    appendLog(`\n✅ Done! ${imported} imported, ${skipped} skipped from "${bookLabel}"`, 'success');
+    
+  } catch (err) {
+    appendLog(`\n❌ ${err.message}`, 'error');
+    progress.value = 0;
+  }
+  
+  importBtn.disabled = false;
+});
+</script>
+</body>
+</html>

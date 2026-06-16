@@ -37,6 +37,15 @@ if (fs.existsSync(adminDist)) {
   });
 }
 
+app.get("/bulk-import.html", (req, res) => {
+  const importPath = path.join(__dirname, "..", "admin", "public", "bulk-import.html");
+  if (fs.existsSync(importPath)) {
+    res.sendFile(importPath);
+  } else {
+    res.status(404).send("bulk-import.html not found");
+  }
+});
+
 app.get("/api/health", (req, res) => {
   const state = mongoose.connection.readyState;
   const status = { 0: "disconnected", 1: "connected", 2: "connecting", 3: "disconnecting" };
