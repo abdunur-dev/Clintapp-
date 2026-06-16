@@ -99,6 +99,12 @@ router.post("/bulk", async (req, res) => {
       await Book.insertMany(autoBooks);
     }
 
+    // Update existing books' page count
+    for (const name of bookNames) {
+      const count = hadiths.filter(h => h.book === name).length;
+      await Book.updateOne({ bookSlug: name, pages: { $ne: count } }, { $set: { pages: count } });
+    }
+
     // Clean up any records with null hadithNumber for these books
     if (bookNames.length > 0) {
       await Hadith.deleteMany({ book: { $in: bookNames }, hadithNumber: null });
