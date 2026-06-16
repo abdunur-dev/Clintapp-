@@ -99,6 +99,11 @@ router.post("/bulk", async (req, res) => {
       await Book.insertMany(autoBooks);
     }
 
+    // Clean up any records with null hadithNumber for these books
+    if (bookNames.length > 0) {
+      await Hadith.deleteMany({ book: { $in: bookNames }, hadithNumber: null });
+    }
+
     if (mode === "upsert") {
       // Update existing records with non-empty fields, insert new ones
       let updated = 0;

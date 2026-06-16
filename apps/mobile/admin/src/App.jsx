@@ -750,7 +750,7 @@ function HadithsPanel() {
   useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
 
   function detectIsEnglish(source) {
-    const first = source.hadiths?.[0]?.text || "";
+    const first = source.hadiths?.[0]?.text || source.chapters?.[0]?.verses?.[0]?.text || "";
     if (!first) return false;
     const hasArabic = /[\u0600-\u06FF]/.test(first);
     return !hasArabic;
@@ -777,9 +777,36 @@ function HadithsPanel() {
     }));
   }
 
+  function transformBible(source) {
+    const bookName = source.book?.trim() || "";
+    const chapters = source.chapters || [];
+    const out = [];
+    for (const ch of chapters) {
+      const chNum = ch.chapter || "1";
+      const verses = ch.verses || [];
+      for (const v of verses) {
+        out.push({
+          book: bookName,
+          chapter: chNum,
+          hadithNumber: Number(v.verse),
+          arabic: "",
+          english: v.text || "",
+          amharic: v.amharic || "",
+          grade: "",
+          narrator: "",
+          reference: {},
+        });
+      }
+    }
+    return out;
+  }
+
   function normalizeHadithData(source) {
     if (source.metadata && Array.isArray(source.hadiths)) {
       return transformSourceHadiths(source);
+    }
+    if (source.book && Array.isArray(source.chapters)) {
+      return transformBible(source);
     }
     return Array.isArray(source) ? source : [source];
   }
@@ -813,7 +840,7 @@ function HadithsPanel() {
       const source = JSON.parse(text);
       const hadiths = normalizeHadithData(source);
       const data = await sendBulkImport(hadiths);
-      const bookLabel = source.metadata?.name || file.name;
+      const bookLabel = source.metadata?.name || source.book || file.name;
       setImportMsg({
         type: "success",
         text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,
@@ -839,7 +866,7 @@ function HadithsPanel() {
       const source = await res.json();
       const hadiths = normalizeHadithData(source);
       const data = await sendBulkImport(hadiths);
-      const bookLabel = source.metadata?.name || new URL(importUrl).pathname.split("/").pop();
+      const bookLabel = source.metadata?.name || source.book || new URL(importUrl).pathname.split("/").pop();
       setImportMsg({
         type: "success",
         text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,

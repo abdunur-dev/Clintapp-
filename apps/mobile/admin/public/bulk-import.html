@@ -43,7 +43,7 @@ const log = document.getElementById('log');
 const fileInfo = document.getElementById('fileInfo');
 
 function detectIsEnglish(source) {
-  const first = source.hadiths?.[0]?.text || '';
+  const first = source.hadiths?.[0]?.text || source.chapters?.[0]?.verses?.[0]?.text || '';
   if (!first) return false;
   return !/[\u0600-\u06FF]/.test(first);
 }
@@ -66,8 +66,33 @@ function transformHadiths(source) {
   }));
 }
 
+function transformBible(source) {
+  const bookName = source.book?.trim() || '';
+  const chapters = source.chapters || [];
+  const out = [];
+  for (const ch of chapters) {
+    const chNum = ch.chapter || '1';
+    const verses = ch.verses || [];
+    for (const v of verses) {
+      out.push({
+        book: bookName,
+        chapter: chNum,
+        hadithNumber: Number(v.verse),
+        arabic: '',
+        english: v.text || '',
+        amharic: v.amharic || '',
+        grade: '',
+        narrator: '',
+        reference: {},
+      });
+    }
+  }
+  return out;
+}
+
 function normalize(source) {
   if (source.metadata && Array.isArray(source.hadiths)) return transformHadiths(source);
+  if (source.book && Array.isArray(source.chapters)) return transformBible(source);
   return Array.isArray(source) ? source : [source];
 }
 
@@ -102,7 +127,7 @@ importBtn.addEventListener('click', async () => {
     const source = JSON.parse(text);
     const hadiths = normalize(source);
     const total = hadiths.length;
-    const bookLabel = source.metadata?.name || file.name;
+    const bookLabel = source.metadata?.name || source.book || file.name;
     
     appendLog(`Parsed ${total} hadiths from "${bookLabel}"`, 'info');
     appendLog(`Detected: ${detectIsEnglish(source) ? 'English' : 'Arabic'} edition`, 'info');

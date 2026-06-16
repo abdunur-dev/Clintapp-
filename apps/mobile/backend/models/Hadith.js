@@ -6,7 +6,7 @@ const hadithSchema = new mongoose.Schema(
     chapter: { type: String, default: "" },
     chapterId: { type: Number, default: null },
     hadithNumber: { type: Number, required: true },
-    arabic: { type: String, required: true },
+    arabic: { type: String, default: "" },
     english: { type: String, default: "" },
     amharic: { type: String, default: "" },
     narrator: { type: String, default: "" },
