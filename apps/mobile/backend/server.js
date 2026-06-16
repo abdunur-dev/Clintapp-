@@ -68,6 +68,17 @@ progress{width:100%;height:8px;border-radius:4px;margin-top:8px}
 <h1>Universal Book Import</h1>
 <label>Backend API URL</label>
 <input id="apiUrl" value="https://clintapp-backend.vercel.app/api" />
+<label>Category</label>
+<select id="categorySelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #252650;background:#13142A;color:#fff;font-size:13px;box-sizing:border-box">
+<option value="">Auto-detect</option>
+<option value="Islamic">Islamic</option>
+<option value="Hadith">Hadith</option>
+<option value="Christianity">Christianity</option>
+<option value="Fiction">Fiction</option>
+<option value="Philosophy">Philosophy</option>
+<option value="Scrolls">Scrolls</option>
+<option value="General">General</option>
+</select>
 <label>Choose JSON file (any format)</label>
 <input type="file" id="fileInput" accept=".json" />
 <div class="file-info" id="fileInfo"></div>
@@ -76,7 +87,7 @@ progress{width:100%;height:8px;border-radius:4px;margin-top:8px}
 <div id="log"></div>
 <div id="preview"><h3>Preview</h3><div id="previewContent"></div></div>
 <script>
-const apiUrl=document.getElementById('apiUrl'),fileInput=document.getElementById('fileInput'),importBtn=document.getElementById('importBtn'),progress=document.getElementById('progress'),log=document.getElementById('log'),fileInfo=document.getElementById('fileInfo'),preview=document.getElementById('preview'),previewContent=document.getElementById('previewContent');
+const apiUrl=document.getElementById('apiUrl'),categorySelect=document.getElementById('categorySelect'),fileInput=document.getElementById('fileInput'),importBtn=document.getElementById('importBtn'),progress=document.getElementById('progress'),log=document.getElementById('log'),fileInfo=document.getElementById('fileInfo'),preview=document.getElementById('preview'),previewContent=document.getElementById('previewContent');
 function hasArabic(t){return/[\\u0600-\\u06FF]/.test(t)}
 function normalizeAny(s){if(s.metadata&&Array.isArray(s.hadiths))return transformH(s);return extractAll(s)}
 function transformH(s){const n=s.metadata?.name?.trim()||'',sec=s.metadata?.sections||{},raw=s.hadiths||[],eng=!hasArabic(raw[0]?.text||'');return raw.map(h=>({book:n,chapter:sec[String(h.reference?.book)]||'',chapterId:h.reference?.book??null,hadithNumber:h.hadithnumber,arabic:eng?'':h.text||'',english:eng?h.text||'':h.english||'',amharic:h.amharic||'',grade:Array.isArray(h.grades)&&h.grades[0]?(h.grades[0].grade||h.grades[0].name||''):'',narrator:'',reference:h.reference||{}}))}
@@ -97,7 +108,7 @@ function esc(s){const d=document.createElement('div');d.textContent=s;return d.i
 function add(m,t){const d=document.createElement('div');d.className=t||'info';d.textContent=m;log.appendChild(d)}
 function label(s){return s.metadata?.name||s.book||s.title||s.name||'Book'}
 fileInput.addEventListener('change',()=>{const f=fileInput.files?.[0];if(f){fileInfo.textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';importBtn.disabled=false}else{fileInfo.textContent='';importBtn.disabled=true}preview.style.display='none'});
-importBtn.addEventListener('click',async()=>{const file=fileInput.files?.[0];if(!file)return;importBtn.disabled=true;log.innerHTML='';progress.value=0;preview.style.display='none';try{const text=await file.text(),source=JSON.parse(text),hadiths=normalizeAny(source),total=hadiths.length,bookLabel=label(source);add('Parsed '+total+' items from "'+bookLabel+'"','info');const BATCH=500;let imported=0,skipped=0,url=apiUrl.value.replace(/\\/+$/,'');for(let i=0;i<total;i+=BATCH){const batch=hadiths.slice(i,i+BATCH);progress.value=Math.round(i/total*100);add('Sending batch '+(Math.floor(i/BATCH)+1)+'/'+Math.ceil(total/BATCH)+' ('+batch.length+' items)...','info');const res=await fetch(url+'/hadiths/bulk?mode=upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(batch)});if(!res.ok){const e=await res.text();throw new Error('HTTP '+res.status+': '+e.slice(0,200))}const data=await res.json();imported+=data.count||0;skipped+=data.skipped||0;add('  \\u2713 '+data.count+' imported'+(data.skipped?', '+data.skipped+' skipped':''),'success')}progress.value=100;add('\\n\\u2705 Done! '+imported+' imported, '+skipped+' skipped from "'+bookLabel+'"','success');showPreview(hadiths,total)}catch(err){add('\\n\\u274c '+err.message,'error');progress.value=0}importBtn.disabled=false});
+importBtn.addEventListener('click',async()=>{const file=fileInput.files?.[0];if(!file)return;importBtn.disabled=true;log.innerHTML='';progress.value=0;preview.style.display='none';try{const text=await file.text(),source=JSON.parse(text),hadiths=normalizeAny(source),total=hadiths.length,bookLabel=label(source);add('Parsed '+total+' items from "'+bookLabel+'"','info');const BATCH=500;let imported=0,skipped=0,url=apiUrl.value.replace(/\\/+$/,''),cat=categorySelect.value,params=cat?'?mode=upsert&category='+encodeURIComponent(cat):'?mode=upsert';for(let i=0;i<total;i+=BATCH){const batch=hadiths.slice(i,i+BATCH);progress.value=Math.round(i/total*100);add('Sending batch '+(Math.floor(i/BATCH)+1)+'/'+Math.ceil(total/BATCH)+' ('+batch.length+' items)...','info');const res=await fetch(url+'/hadiths/bulk'+params,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(batch)});if(!res.ok){const e=await res.text();throw new Error('HTTP '+res.status+': '+e.slice(0,200))}const data=await res.json();imported+=data.count||0;skipped+=data.skipped||0;add('  \\u2713 '+data.count+' imported'+(data.skipped?', '+data.skipped+' skipped':''),'success')}progress.value=100;add('\\n\\u2705 Done! '+imported+' imported, '+skipped+' skipped from "'+bookLabel+'"','success');showPreview(hadiths,total)}catch(err){add('\\n\\u274c '+err.message,'error');progress.value=0}importBtn.disabled=false});
 </script>
 </body>
 </html>`);

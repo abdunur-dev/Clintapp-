@@ -76,33 +76,60 @@ router.post("/bulk", async (req, res) => {
       return res.status(400).json({ error: "hadiths must be a non-empty array" });
     }
 
+    // Determine category and sacredType
+    const userCategory = req.query.category || "";
+    const catMap = {
+      "Hadith": { category: "Hadith", sacredType: "hadith", isSacred: true, color: "#2A5C3A", iconName: "BookOpen" },
+      "Islamic": { category: "Islamic", sacredType: "hadith", isSacred: true, color: "#2A5C3A", iconName: "BookOpen" },
+      "Christianity": { category: "Christianity", sacredType: "bible", isSacred: true, color: "#5C6A9A", iconName: "BookOpen" },
+      "Fiction": { category: "Fiction", sacredType: null, isSacred: false, color: "#C9A84C", iconName: "BookOpen" },
+      "Philosophy": { category: "Philosophy", sacredType: null, isSacred: false, color: "#8C6A3A", iconName: "Feather" },
+      "Scrolls": { category: "Scrolls", sacredType: null, isSacred: false, color: "#6B4E3A", iconName: "Scroll" },
+      "General": { category: "General", sacredType: null, isSacred: false, color: "#4A8C5C", iconName: "BookOpen" },
+    };
+    function getBookMeta(name) {
+      if (userCategory && catMap[userCategory]) return { ...catMap[userCategory] };
+      const bookHadiths = hadiths.filter(h => h.book === name);
+      const hasArabic = bookHadiths.some(h => h.arabic);
+      return hasArabic
+        ? { category: "Hadith", sacredType: "hadith", isSacred: true, color: "#2A5C3A", iconName: "BookOpen" }
+        : { category: "General", sacredType: null, isSacred: false, color: "#4A8C5C", iconName: "BookOpen" };
+    }
+
     // Auto-create Book if it doesn't exist
     const bookNames = [...new Set(hadiths.map(h => h.book).filter(Boolean))];
     const existingBooks = await Book.find({ bookSlug: { $in: bookNames } }).lean();
     const existingSlugs = new Set(existingBooks.map(b => b.bookSlug));
     const autoBooks = bookNames
       .filter(name => !existingSlugs.has(name))
-      .map(name => ({
-        title: name,
-        category: "Hadith",
-        isSacred: true,
-        sacredType: "hadith",
-        bookSlug: name,
-        color: "#2A5C3A",
-        iconName: "BookOpen",
-        price: 0,
-        rating: 5,
-        chapters: 0,
-        pages: hadiths.filter(h => h.book === name).length,
-      }));
+      .map(name => {
+        const meta = getBookMeta(name);
+        return {
+          title: name,
+          category: meta.category,
+          isSacred: meta.isSacred,
+          sacredType: meta.sacredType,
+          bookSlug: name,
+          color: meta.color,
+          iconName: meta.iconName,
+          price: 0,
+          rating: 5,
+          chapters: 0,
+          pages: hadiths.filter(h => h.book === name).length,
+        };
+      });
     if (autoBooks.length > 0) {
       await Book.insertMany(autoBooks);
     }
 
-    // Update existing books' page count
+    // Update existing books' metadata (category, sacredType, pages)
     for (const name of bookNames) {
+      const meta = getBookMeta(name);
       const count = hadiths.filter(h => h.book === name).length;
-      await Book.updateOne({ bookSlug: name, pages: { $ne: count } }, { $set: { pages: count } });
+      await Book.updateOne(
+        { bookSlug: name },
+        { $set: { category: meta.category, sacredType: meta.sacredType, isSacred: meta.isSacred, color: meta.color, iconName: meta.iconName, pages: count } }
+      );
     }
 
     // Clean up any records with null hadithNumber for these books

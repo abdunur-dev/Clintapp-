@@ -30,6 +30,18 @@ progress { width: 100%; height: 8; border-radius: 4; margin-top: 8; }
 <label>Backend API URL</label>
 <input id="apiUrl" value="https://clintapp-backend.vercel.app/api" />
 
+<label>Category</label>
+<select id="categorySelect" style="width:100%;padding:8px;border-radius:6px;border:1px solid #252650;background:#13142A;color:#fff;font-size:13px;box-sizing:border-box">
+  <option value="">Auto-detect</option>
+  <option value="Islamic">Islamic</option>
+  <option value="Hadith">Hadith</option>
+  <option value="Christianity">Christianity</option>
+  <option value="Fiction">Fiction</option>
+  <option value="Philosophy">Philosophy</option>
+  <option value="Scrolls">Scrolls</option>
+  <option value="General">General</option>
+</select>
+
 <label>Choose JSON file (any format)</label>
 <input type="file" id="fileInput" accept=".json" />
 
@@ -46,6 +58,7 @@ progress { width: 100%; height: 8; border-radius: 4; margin-top: 8; }
 
 <script>
 const apiUrl = document.getElementById('apiUrl');
+const categorySelect = document.getElementById('categorySelect');
 const fileInput = document.getElementById('fileInput');
 const importBtn = document.getElementById('importBtn');
 const progress = document.getElementById('progress');
@@ -228,11 +241,13 @@ importBtn.addEventListener('click', async () => {
     const BATCH = 500;
     let imported = 0, skipped = 0;
     const url = apiUrl.value.replace(/\/$/, '');
+    const cat = categorySelect.value;
+    const params = cat ? `?mode=upsert&category=${encodeURIComponent(cat)}` : `?mode=upsert`;
     for (let i = 0; i < total; i += BATCH) {
       const batch = hadiths.slice(i, i + BATCH);
       progress.value = Math.round(i / total * 100);
       appendLog(`Sending batch ${Math.floor(i/BATCH)+1}/${Math.ceil(total/BATCH)} (${batch.length} items)...`, 'info');
-      const res = await fetch(`${url}/hadiths/bulk?mode=upsert`, {
+      const res = await fetch(`${url}/hadiths/bulk${params}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(batch),
       });
       if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e.slice(0, 200)}`); }

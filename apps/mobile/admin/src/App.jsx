@@ -739,6 +739,7 @@ function HadithsPanel() {
   const [importMsg, setImportMsg] = useState(null);
   const [importFile, setImportFile] = useState("");
   const [importUrl, setImportUrl] = useState("");
+  const [importCategory, setImportCategory] = useState("");
   const importFileRef = useRef(null);
 
   const searchRef = useRef("");
@@ -860,13 +861,14 @@ function HadithsPanel() {
     return extractAll(source);
   }
 
-  const sendBulkImport = async (hadiths) => {
+  const sendBulkImport = async (hadiths, category) => {
     const BATCH = 500;
     let totalCount = 0;
     let totalSkipped = 0;
+    const catParam = category ? `&category=${encodeURIComponent(category)}` : "";
     for (let i = 0; i < hadiths.length; i += BATCH) {
       const batch = hadiths.slice(i, i + BATCH);
-      const res = await fetch(`${API}/hadiths/bulk?mode=upsert`, {
+      const res = await fetch(`${API}/hadiths/bulk?mode=upsert${catParam}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(batch),
@@ -888,7 +890,7 @@ function HadithsPanel() {
       const text = await file.text();
       const source = JSON.parse(text);
       const hadiths = normalizeAny(source);
-      const data = await sendBulkImport(hadiths);
+      const data = await sendBulkImport(hadiths, importCategory);
       const bookLabel = source.metadata?.name || source.book || source.title || source.name || file.name;
       setImportMsg({
         type: "success",
@@ -914,7 +916,7 @@ function HadithsPanel() {
       if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
       const source = await res.json();
       const hadiths = normalizeAny(source);
-      const data = await sendBulkImport(hadiths);
+      const data = await sendBulkImport(hadiths, importCategory);
       const bookLabel = source.metadata?.name || source.book || source.title || source.name || new URL(importUrl).pathname.split("/").pop();
       setImportMsg({
         type: "success",
@@ -1023,8 +1025,25 @@ function HadithsPanel() {
       {showImport && (
         <div style={s.importSection}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <h3 style={s.sectionTitle}>Import Hadiths JSON</h3>
+            <h3 style={s.sectionTitle}>Import Books JSON</h3>
             <button onClick={() => setShowImport(false)} style={s.iconBtnPlain}><Icon name="x" size={14} color={theme.muted} /></button>
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <select
+              value={importCategory}
+              onChange={(e) => setImportCategory(e.target.value)}
+              style={{ ...s.searchInput, fontSize: 12, width: "100%" }}
+            >
+              <option value="">Auto-detect category</option>
+              <option value="Islamic">Islamic</option>
+              <option value="Hadith">Hadith</option>
+              <option value="Christianity">Christianity</option>
+              <option value="Fiction">Fiction</option>
+              <option value="Philosophy">Philosophy</option>
+              <option value="Scrolls">Scrolls</option>
+              <option value="General">General</option>
+            </select>
           </div>
 
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: importFile ? 0 : 16 }}>
