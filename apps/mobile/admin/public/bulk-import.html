@@ -119,7 +119,7 @@ importBtn.addEventListener('click', async () => {
       
       appendLog(`Sending batch ${Math.floor(i/BATCH)+1}/${Math.ceil(total/BATCH)} (${batch.length} hadiths)...`, 'info');
       
-      const res = await fetch(`${url}/hadiths/bulk`, {
+      const res = await fetch(`${url}/hadiths/bulk?mode=upsert`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(batch),

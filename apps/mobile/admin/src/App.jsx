@@ -790,7 +790,7 @@ function HadithsPanel() {
     let totalSkipped = 0;
     for (let i = 0; i < hadiths.length; i += BATCH) {
       const batch = hadiths.slice(i, i + BATCH);
-      const res = await fetch(`${API}/hadiths/bulk`, {
+      const res = await fetch(`${API}/hadiths/bulk?mode=upsert`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(batch),

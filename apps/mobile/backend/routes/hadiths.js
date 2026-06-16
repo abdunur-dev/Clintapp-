@@ -67,6 +67,7 @@ router.post("/", async (req, res) => {
 router.post("/bulk", async (req, res) => {
   try {
     let hadiths = req.body;
+    const mode = req.query.mode || "skip";
     // Support both { hadiths: [...] } and direct array
     if (hadiths && !Array.isArray(hadiths) && Array.isArray(hadiths.hadiths)) {
       hadiths = hadiths.hadiths;
@@ -98,7 +99,40 @@ router.post("/bulk", async (req, res) => {
       await Book.insertMany(autoBooks);
     }
 
-    // Dedup by book + hadithNumber
+    if (mode === "upsert") {
+      // Update existing records with non-empty fields, insert new ones
+      let updated = 0;
+      let inserted = 0;
+      let errorCount = 0;
+      const BATCH = 500;
+
+      for (let i = 0; i < hadiths.length; i += BATCH) {
+        const batch = hadiths.slice(i, i + BATCH);
+        const upsertOps = batch.map(h => {
+          const setFields = {};
+          for (const key of ["arabic", "english", "amharic", "narrator", "grade", "chapter", "chapterId", "reference"]) {
+            if (h[key] !== undefined && h[key] !== null && h[key] !== "") {
+              setFields[key] = h[key];
+            }
+          }
+          return {
+            updateOne: {
+              filter: { book: h.book, hadithNumber: h.hadithNumber },
+              update: { $set: setFields },
+              upsert: true,
+            },
+          };
+        });
+
+        const result = await Hadith.bulkWrite(upsertOps, { ordered: false });
+        updated += (result.modifiedCount || 0) + (result.upsertedCount || 0);
+        errorCount += (result.writeErrors || []).length;
+      }
+
+      return res.json({ count: updated, skipped: errorCount, mode: "upsert" });
+    }
+
+    // Default "skip" mode: dedup by book + hadithNumber
     const pairs = [...new Set(hadiths.map(h => `${h.book}|${h.hadithNumber}`))];
     const existing = await Hadith.find({
       $or: pairs.map(p => {
