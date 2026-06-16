@@ -15,6 +15,7 @@ import receiptsRouter from "./routes/receipts.js";
 import hadithsRouter from "./routes/hadiths.js";
 import translateRouter from "./routes/translate.js";
 import paymentsRouter from "./routes/payments.js";
+import syncHadithsRouter from "./routes/sync-hadiths.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -57,6 +58,7 @@ app.use("/api/receipts", receiptsRouter);
 app.use("/api/hadiths", hadithsRouter);
 app.use("/api/translate", translateRouter);
 app.use("/api/payments", paymentsRouter);
+app.use("/api/sync-hadiths", syncHadithsRouter);
 
 app.get("/api/db", async (req, res) => {
   try {
