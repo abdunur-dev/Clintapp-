@@ -12,7 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { ArrowLeft, Upload, CheckCircle, CreditCard, Camera } from "lucide-react-native";
+import { ArrowLeft, Upload, Clock, CreditCard, Camera } from "lucide-react-native";
 import {
   useFonts,
   CrimsonPro_400Regular,
@@ -87,10 +87,10 @@ export default function CheckoutScreen() {
       <View style={[styles.screen, { paddingTop: insets.top }]}>
         <LinearGradient colors={["#12144A22", "#0B0C1A"]} style={StyleSheet.absoluteFill} />
         <View style={styles.successContainer}>
-          <CheckCircle color={COLORS.gold} size={72} strokeWidth={1.5} />
-          <Text style={styles.successTitle}>Receipt Submitted!</Text>
+          <Clock color={COLORS.gold} size={72} strokeWidth={1.5} />
+          <Text style={styles.successTitle}>Under Review</Text>
           <Text style={styles.successSub}>
-            Your payment receipt has been sent for review. We'll notify you once it's approved.
+            Your receipt has been submitted. The admin will review it shortly — once approved, the book will unlock.
           </Text>
           <TouchableOpacity
             onPress={() => router.replace("/(tabs)")}

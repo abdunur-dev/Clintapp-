@@ -35,6 +35,13 @@ const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 const categories = [
   {
+    id: "islamic",
+    title: "እስልምና",
+    subtitle: "Islamic",
+    icon: Moon,
+    subs: ["Hadith", "Tafsir", "Aqeedah", "Fiqh", "Islamic Books"],
+  },
+  {
     id: "christianity",
     title: "ክርስትና",
     subtitle: "Christianity",
@@ -216,7 +223,7 @@ export default function HomeScreen() {
               return (
               <ScaleInView key={cat.id} delay={200 + i * 80} style={{ width: cardWidth }}>
               <TouchableOpacity
-                onPress={() => setActiveCategory(cat.id)}
+                onPress={() => router.push(`/library?section=${cat.subtitle}`)}
                 activeOpacity={0.8}
                 style={{
                   backgroundColor: isActive ? "#1E1F4A" : COLORS.card,

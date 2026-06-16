@@ -20,7 +20,7 @@ import {
   Church,
   Feather,
   Heart,
-  Download,
+  ShoppingCart,
   Share2,
   Star,
   Bookmark,
@@ -31,6 +31,8 @@ import {
   MessageCircle,
   Plus,
   Check,
+  Clock,
+  Lock,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -73,13 +75,39 @@ export default function BookDetailScreen() {
 
   const [book, setBook] = useState(null);
   const [loading, setLoading] = useState(true);
-
+  const [purchasedBooks, setPurchasedBooks] = useState([]);
+  const [underReviewBooks, setUnderReviewBooks] = useState([]);
+  const isPurchased = purchasedBooks.includes(String(id));
+  const isUnderReview = underReviewBooks.includes(String(id));
 
   useEffect(() => {
-
-    api.getBook(id).then((data) => {
-
-      setBook(data);
+    Promise.all([
+      api.getBook(id),
+      api.getOrders().catch(() => []),
+      api.getReceipts().catch(() => []),
+    ]).then(([bookData, orders, receipts]) => {
+      setBook(bookData);
+      const purchased = [];
+      const pending = [];
+      orders.forEach((o) => {
+        o.items?.forEach((item) => {
+          const bid = String(item.bookId || item.bookId);
+          if (o.status === "confirmed") purchased.push(bid);
+          else if (!purchased.includes(bid)) pending.push(bid);
+        });
+      });
+      const receiptOrderIds = new Set(receipts.filter((r) => r.status === "pending").map((r) => String(r.orderId?._id || r.orderId)));
+      orders.forEach((o) => {
+        const oid = String(o._id);
+        if (receiptOrderIds.has(oid) && !purchased.includes(oid)) {
+          o.items?.forEach((item) => {
+            const bid = String(item.bookId || item.bookId);
+            if (!purchased.includes(bid) && !pending.includes(bid)) pending.push(bid);
+          });
+        }
+      });
+      setPurchasedBooks(purchased);
+      setUnderReviewBooks(pending);
     }).catch((err) => {
       console.error('Book fetch error:', err);
     }).finally(() => setLoading(false));
@@ -88,7 +116,7 @@ export default function BookDetailScreen() {
   const fontSizes = [13, 15, 18];
   const fontSize = fontSizes[fontLevel];
 
-  const handleAddToCart = useCallback(() => {
+  const handleBuy = useCallback(() => {
     if (!book) return;
     addItem({
       bookId: book._id || String(id),
@@ -101,7 +129,11 @@ export default function BookDetailScreen() {
       category: book.category,
       coverUrl: book.coverUrl || '',
     });
-  }, [book, id, addItem]);
+    Alert.alert("Added to Cart", "Go to cart to complete your purchase", [
+      { text: "Stay", style: "cancel" },
+      { text: "View Cart", onPress: () => router.push("/cart") },
+    ]);
+  }, [book, id, addItem, router]);
 
   const handleShare = useCallback(() => {
     if (!book) return;
@@ -687,100 +719,92 @@ export default function BookDetailScreen() {
           gap: SPACING.sm,
         }}
       >
-        {/* Main CTA */}
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => setReaderOpen(true)}
-          style={{
-            width: "100%",
-            height: 54,
-            borderRadius: RADIUS.md,
-            backgroundColor: COLORS.gold,
-            justifyContent: "center",
-            alignItems: "center",
-            flexDirection: "row",
-            gap: 10,
-            ...SHADOWS.gold,
-          }}
-        >
-          <BookOpen color={COLORS.bg} size={18} strokeWidth={2} />
-          <Text
+        {isPurchased ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => setReaderOpen(true)}
             style={{
-              color: COLORS.bg,
-              fontFamily: "CrimsonPro_700Bold",
-              fontSize: 17,
-              letterSpacing: 0.5,
+              width: "100%",
+              height: 54,
+              borderRadius: RADIUS.md,
+              backgroundColor: COLORS.gold,
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 10,
+              ...SHADOWS.gold,
             }}
           >
-            {book.sacredType === "hadith" ? "Browse Hadiths" : book.progress > 0 ? "Continue Reading" : "Start Reading"}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Secondary actions */}
-        <View
-          style={{
-            flexDirection: "row",
-            gap: SPACING.md,
-          }}
-        >
+            <BookOpen color={COLORS.bg} size={18} strokeWidth={2} />
+            <Text
+              style={{
+                color: COLORS.bg,
+                fontFamily: "CrimsonPro_700Bold",
+                fontSize: 17,
+                letterSpacing: 0.5,
+              }}
+            >
+              Reading Now
+            </Text>
+          </TouchableOpacity>
+        ) : isUnderReview ? (
           <TouchableOpacity
-            activeOpacity={0.7}
+            activeOpacity={1}
+            disabled
             style={{
-              flex: 1,
-              height: 40,
+              width: "100%",
+              height: 54,
               borderRadius: RADIUS.md,
               backgroundColor: COLORS.card,
               justifyContent: "center",
               alignItems: "center",
               flexDirection: "row",
-              gap: 6,
+              gap: 10,
               borderWidth: 1,
-              borderColor: COLORS.cardBorder,
+              borderColor: COLORS.gold + "50",
             }}
           >
-            <Download color={COLORS.muted} size={14} strokeWidth={1.8} />
+            <Clock color={COLORS.gold} size={18} strokeWidth={2} />
             <Text
               style={{
-                color: COLORS.muted,
-                fontFamily: "CrimsonPro_400Regular",
-                fontSize: 12,
+                color: COLORS.gold,
+                fontFamily: "CrimsonPro_700Bold",
+                fontSize: 17,
+                letterSpacing: 0.5,
               }}
             >
-              Download
+              Under Review
             </Text>
           </TouchableOpacity>
+        ) : (
           <TouchableOpacity
-            activeOpacity={0.7}
-            onPress={handleAddToCart}
+            activeOpacity={0.85}
+            onPress={handleBuy}
             style={{
-              flex: 1,
-              height: 40,
+              width: "100%",
+              height: 54,
               borderRadius: RADIUS.md,
-              backgroundColor: isInCart ? COLORS.gold + "22" : COLORS.card,
+              backgroundColor: COLORS.gold,
               justifyContent: "center",
               alignItems: "center",
               flexDirection: "row",
-              gap: 6,
-              borderWidth: 1,
-              borderColor: isInCart ? COLORS.gold : COLORS.cardBorder,
+              gap: 10,
+              ...SHADOWS.gold,
             }}
           >
-            <Plus
-              color={isInCart ? COLORS.gold : COLORS.muted}
-              size={14}
-              strokeWidth={2}
-            />
+            <ShoppingCart color={COLORS.bg} size={18} strokeWidth={2} />
             <Text
               style={{
-                color: isInCart ? COLORS.gold : COLORS.muted,
-                fontFamily: "CrimsonPro_400Regular",
-                fontSize: 12,
+                color: COLORS.bg,
+                fontFamily: "CrimsonPro_700Bold",
+                fontSize: 17,
+                letterSpacing: 0.5,
               }}
             >
-              {isInCart ? "In Cart" : "Add to Cart"}
+              Buy
             </Text>
           </TouchableOpacity>
-        </View>
+        )}
       </View>
 
 

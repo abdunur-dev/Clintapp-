@@ -40,7 +40,7 @@ router.post("/upload", upload.single("receipt"), async (req, res) => {
       imagePath,
     });
 
-    order.status = "confirmed";
+    order.status = "pending";
     await order.save();
 
     res.status(201).json(receipt);

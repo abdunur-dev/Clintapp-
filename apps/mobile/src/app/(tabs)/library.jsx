@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   Text,
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   BookOpen,
   Moon,
@@ -273,11 +273,19 @@ function filterBooksForSection(books, sectionKey) {
 export default function LibraryScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [activeCat, setActiveCat] = useState("All");
+  const params = useLocalSearchParams();
+  const [activeCat, setActiveCat] = useState(params.section || "All");
   const [fontsLoaded] = useFonts({ CrimsonPro_400Regular, CrimsonPro_700Bold });
   const [loading, setLoading] = useState(true);
   const [savedIds, setSavedIds] = useState(new Set());
   const [books, setBooks] = useState([]);
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (params.section && CATEGORIES.includes(params.section)) {
+      setActiveCat(params.section);
+    }
+  }, [params.section]);
 
   useEffect(() => {
     Promise.all([
@@ -451,6 +459,7 @@ export default function LibraryScreen() {
       </ScrollView>
 
       <ScrollView
+        ref={scrollRef}
         style={{ flex: 1 }}
         contentContainerStyle={{
           paddingHorizontal: SPACING.xl,
