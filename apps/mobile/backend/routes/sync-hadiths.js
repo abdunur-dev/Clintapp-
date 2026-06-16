@@ -34,24 +34,30 @@ router.post("/", async (req, res) => {
       }
 
       const data = await resp.json();
-      const hadiths = data.hadiths || [];
+      const apiHadiths = data.hadiths || [];
 
-      let updated = 0;
-      let skipped = 0;
+      const bulkOps = [];
 
-      for (const h of hadiths) {
-        if (!h.text) { skipped++; continue; }
+      for (const h of apiHadiths) {
+        if (!h.text) continue;
+        bulkOps.push({
+          updateOne: {
+            filter: { book: bookName, hadithNumber: h.hadithnumber, english: "" },
+            update: { $set: { english: h.text } },
+          },
+        });
 
-        const result = await Hadith.findOneAndUpdate(
-          { book: bookName, hadithNumber: h.hadithnumber, english: "" },
-          { $set: { english: h.text } },
-          { new: false }
-        );
-
-        if (result) updated++;
+        if (bulkOps.length >= 500) {
+          await Hadith.bulkWrite(bulkOps, { ordered: false });
+          bulkOps.length = 0;
+        }
       }
 
-      results.push({ book: bookName, total: hadiths.length, updated, skipped });
+      if (bulkOps.length > 0) {
+        await Hadith.bulkWrite(bulkOps, { ordered: false });
+      }
+
+      results.push({ book: bookName, total: apiHadiths.length });
     }
 
     res.json({ message: "Sync complete", results });
