@@ -7,11 +7,11 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+
 import { COLORS, SPACING, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
 import { LANGUAGES, BOOKS_DATA_SACRED, getAvailableLangs } from '../data/sacred-texts';
@@ -65,26 +65,9 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
     setPanelLang,
   } = useReaderStore();
 
-  const [amharicTranslations, setAmharicTranslations] = useState({});
-  const [amharicTranslating, setAmharicTranslating] = useState(false);
-
-  const handleAmharicTranslate = async () => {
-    if (amharicTranslating || !verses.length) return;
-    setAmharicTranslating(true);
-    const batch = {};
-    try {
-      for (const v of verses.slice(0, 5)) {
-        const source = v.arabic || v.geez || v.english || v.greek || v.hebrew;
-        if (!source) continue;
-        const res = await api.translateText(source, 'am');
-        batch[v.number] = res.translation;
-      }
-      setAmharicTranslations(prev => ({ ...prev, ...batch }));
-      setRightLang('amharic');
-    } catch (_) {
-      Alert.alert('Translation Error', 'Could not reach translation server. Check your network connection.');
-    }
-    setAmharicTranslating(false);
+  const handleAmharicTranslate = () => {
+    if (!verses.length) return;
+    setRightLang('amharic');
   };
 
   // Ensure selected languages have content
@@ -277,15 +260,10 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
 
         <TouchableOpacity
           onPress={handleAmharicTranslate}
-          disabled={amharicTranslating}
           activeOpacity={0.7}
           style={styles.amharicBtn}
         >
-          {amharicTranslating ? (
-            <ActivityIndicator size="small" color={COLORS.gold} />
-          ) : (
-            <Text style={styles.amharicBtnText}>አማርኛ</Text>
-          )}
+          <Text style={styles.amharicBtnText}>አማርኛ</Text>
         </TouchableOpacity>
       </View>
 
@@ -339,6 +317,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
               scrollRef={topScrollRef}
               onScroll={handleTopScroll}
               compact
+              isHadith={isHadith}
             />
           </View>
 
@@ -362,7 +341,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
               scrollRef={bottomScrollRef}
               onScroll={handleBottomScroll}
               compact
-              translations={amharicTranslations}
+              isHadith={isHadith}
             />
           </View>
         </View>

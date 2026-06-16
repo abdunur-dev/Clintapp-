@@ -66,6 +66,7 @@ export default function ParchmentPage({
   onScroll,
   compact,
   translations: externalTranslations,
+  isHadith,
 }) {
   const { fontSize, isBookmarked, toggleBookmark } = useReaderStore();
   const isRTL = script === 'rtl';
@@ -83,7 +84,7 @@ export default function ParchmentPage({
     setTranslatingVerse(null);
   };
 
-  const needsTranslate = verses.length > 0 && !verses[0][lang] && verses[0]['arabic'];
+  const needsTranslate = !isHadith && verses.length > 0 && !verses[0][lang] && verses[0]['arabic'];
 
   return (
     <OrnamentalBorder compact={compact}>
