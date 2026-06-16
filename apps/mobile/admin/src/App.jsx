@@ -785,14 +785,22 @@ function HadithsPanel() {
   }
 
   const sendBulkImport = async (hadiths) => {
-    const res = await fetch(`${API}/hadiths/bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(hadiths),
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Server error`);
-    return data;
+    const BATCH = 500;
+    let totalCount = 0;
+    let totalSkipped = 0;
+    for (let i = 0; i < hadiths.length; i += BATCH) {
+      const batch = hadiths.slice(i, i + BATCH);
+      const res = await fetch(`${API}/hadiths/bulk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(batch),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Server error`);
+      totalCount += data.count || 0;
+      totalSkipped += data.skipped || 0;
+    }
+    return { count: totalCount, skipped: totalSkipped };
   };
 
   const handleHadithImport = async () => {
@@ -808,7 +816,7 @@ function HadithsPanel() {
       const bookLabel = source.metadata?.name || file.name;
       setImportMsg({
         type: "success",
-        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}`,
+        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,
       });
       setImportFile("");
       importFileRef.current.value = "";
@@ -834,7 +842,7 @@ function HadithsPanel() {
       const bookLabel = source.metadata?.name || new URL(importUrl).pathname.split("/").pop();
       setImportMsg({
         type: "success",
-        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}${data.autoCreatedBooks ? `. ${data.autoCreatedBooks} book(s) auto-created` : ""}`,
+        text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,
       });
       setImportUrl("");
       fetchHadiths();
