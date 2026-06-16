@@ -749,66 +749,115 @@ function HadithsPanel() {
 
   useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
 
-  function detectIsEnglish(source) {
-    const first = source.hadiths?.[0]?.text || source.chapters?.[0]?.verses?.[0]?.text || "";
-    if (!first) return false;
-    const hasArabic = /[\u0600-\u06FF]/.test(first);
-    return !hasArabic;
-  }
+  function hasArabic(t) { return /[\u0600-\u06FF]/.test(t); }
 
   function transformSourceHadiths(source) {
     const bookName = source.metadata?.name?.trim() || "";
     const sections = source.metadata?.sections || {};
     const raw = source.hadiths || [];
-    const isEnglish = detectIsEnglish(source);
+    const eng = !hasArabic(raw[0]?.text || "");
     return raw.map((h) => ({
       book: bookName,
       chapter: sections[String(h.reference?.book)] || "",
       chapterId: h.reference?.book ?? null,
       hadithNumber: h.hadithnumber,
-      arabic: isEnglish ? "" : (h.text || ""),
-      english: isEnglish ? (h.text || "") : (h.english || ""),
+      arabic: eng ? "" : (h.text || ""),
+      english: eng ? (h.text || "") : (h.english || ""),
       amharic: h.amharic || "",
-      grade:
-        Array.isArray(h.grades) && h.grades[0]
-          ? h.grades[0].grade || h.grades[0].name || ""
-          : "",
+      grade: Array.isArray(h.grades) && h.grades[0] ? (h.grades[0].grade || h.grades[0].name || "") : "",
+      narrator: "",
       reference: h.reference || {},
     }));
   }
 
-  function transformBible(source) {
-    const bookName = source.book?.trim() || "";
-    const chapters = source.chapters || [];
-    const out = [];
-    for (const ch of chapters) {
-      const chNum = ch.chapter || "1";
-      const verses = ch.verses || [];
-      for (const v of verses) {
-        out.push({
-          book: bookName,
-          chapter: chNum,
-          hadithNumber: Number(v.verse),
-          arabic: "",
-          english: v.text || "",
-          amharic: v.amharic || "",
-          grade: "",
-          narrator: "",
-          reference: {},
-        });
-      }
-    }
-    return out;
+  function pt(v) {
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (!v || typeof v !== "object") return "";
+    return v.text || v.content || v.english || v.arabic || v.verseText || "";
   }
 
-  function normalizeHadithData(source) {
-    if (source.metadata && Array.isArray(source.hadiths)) {
-      return transformSourceHadiths(source);
+  function pn(v, fallback) {
+    return Number(v?.verse ?? v?.number ?? v?.id ?? v?.chapter ?? fallback) || fallback;
+  }
+
+  function pc(v) { return v?.chapter || v?.section || ""; }
+
+  function extractAll(source) {
+    const book = source.book || source.title || source.name || source.id || "Book";
+    const items = [];
+
+    function add(num, text, ch) {
+      const n = Number(num) || (items.length + 1);
+      items.push({ book, chapter: ch || "", hadithNumber: n, arabic: "", english: String(text), amharic: "", grade: "", narrator: "", reference: {} });
     }
-    if (source.book && Array.isArray(source.chapters)) {
-      return transformBible(source);
+
+    if (Array.isArray(source)) {
+      for (let i = 0; i < source.length; i++) { const v = source[i]; add(pn(v, i + 1), pt(v) || JSON.stringify(v), pc(v)); }
+      return items;
     }
-    return Array.isArray(source) ? source : [source];
+
+    if (source.chapters && Array.isArray(source.chapters)) {
+      let idx = 0;
+      for (const ch of source.chapters) {
+        const chNum = ch.chapter || ch.number || ch.id || ch.title || String(idx + 1);
+        const verses = ch.verses || ch.content || ch.paragraphs || ch.items || ch.lines || ch.texts || [];
+        const arr = Array.isArray(verses) ? verses : (typeof verses === "string" ? [verses] : []);
+        let vi = 0;
+        for (const v of arr) { vi++; add(pn(v, vi), pt(v) || JSON.stringify(v), chNum); }
+        idx++;
+      }
+      return items;
+    }
+
+    if (source.sections && Array.isArray(source.sections)) {
+      for (const sec of source.sections) {
+        const sNum = sec.section || sec.number || sec.id || sec.title || String(items.length + 1);
+        const t = sec.text || sec.content || "";
+        if (t && typeof t === "string") add(1, t, sNum);
+        const sub = sec.items || sec.verses || [];
+        if (Array.isArray(sub)) { for (const v of sub) add(pn(v, items.length + 1), pt(v) || JSON.stringify(v), sNum); }
+      }
+      return items;
+    }
+
+    if (source.pages && Array.isArray(source.pages)) {
+      for (const p of source.pages) {
+        const pNum = p.page || p.number || p.id || String(items.length + 1);
+        const t = p.text || p.content || "";
+        if (t && typeof t === "string") add(pNum, t);
+      }
+      return items;
+    }
+
+    const body = source.content || source.text || source.body;
+    if (body) {
+      if (typeof body === "string") { add(1, body); return items; }
+      if (typeof body === "object") return extractAll(body);
+    }
+
+    const numKeys = Object.keys(source).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
+    if (numKeys.length > 0) {
+      for (const k of numKeys) add(k, typeof source[k] === "string" ? source[k] : JSON.stringify(source[k]));
+      return items;
+    }
+
+    const fallbackFields = ["description", "summary", "introduction", "data", "verses", "lines", "entries"];
+    for (const key of fallbackFields) {
+      if (Array.isArray(source[key])) {
+        for (let i = 0; i < source[key].length; i++) { const v = source[key][i]; add(pn(v, i + 1), pt(v) || JSON.stringify(v), pc(v)); }
+        return items;
+      }
+      if (source[key] && typeof source[key] === "string") { add(1, source[key]); return items; }
+    }
+
+    add(1, JSON.stringify(source));
+    return items;
+  }
+
+  function normalizeAny(source) {
+    if (source.metadata && Array.isArray(source.hadiths)) return transformSourceHadiths(source);
+    return extractAll(source);
   }
 
   const sendBulkImport = async (hadiths) => {
@@ -838,9 +887,9 @@ function HadithsPanel() {
     try {
       const text = await file.text();
       const source = JSON.parse(text);
-      const hadiths = normalizeHadithData(source);
+      const hadiths = normalizeAny(source);
       const data = await sendBulkImport(hadiths);
-      const bookLabel = source.metadata?.name || source.book || file.name;
+      const bookLabel = source.metadata?.name || source.book || source.title || source.name || file.name;
       setImportMsg({
         type: "success",
         text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,
@@ -864,9 +913,9 @@ function HadithsPanel() {
       const res = await fetch(importUrl);
       if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
       const source = await res.json();
-      const hadiths = normalizeHadithData(source);
+      const hadiths = normalizeAny(source);
       const data = await sendBulkImport(hadiths);
-      const bookLabel = source.metadata?.name || source.book || new URL(importUrl).pathname.split("/").pop();
+      const bookLabel = source.metadata?.name || source.book || source.title || source.name || new URL(importUrl).pathname.split("/").pop();
       setImportMsg({
         type: "success",
         text: `✅ ${data.count} imported, ${data.skipped} skipped from ${bookLabel}`,

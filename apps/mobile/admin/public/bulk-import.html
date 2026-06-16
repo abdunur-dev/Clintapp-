@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bulk Hadith Import</title>
+<title>Universal Book Import</title>
 <style>
-body { background: #0B0C1A; color: #fff; font-family: system-ui, sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; }
+body { background: #0B0C1A; color: #fff; font-family: system-ui, sans-serif; padding: 20px; max-width: 700px; margin: 0 auto; }
 h1 { color: #C9A84C; font-size: 20px; }
 label { display: block; margin: 16 0 6; font-size: 12; color: #A0A0C0; }
 input, textarea { width: 100%; padding: 8; border-radius: 6; border: 1px solid #252650; background: #13142A; color: #fff; font-size: 13; box-sizing: border-box; }
@@ -17,15 +17,20 @@ button:disabled { opacity: 0.5; }
 .info { color: #A0A0C0; }
 .file-info { margin: 8 0; font-size: 12; color: #7878A0; }
 progress { width: 100%; height: 8; border-radius: 4; margin-top: 8; }
+#preview { margin-top: 20; display: none; }
+#preview h3 { color: #C9A84C; font-size: 14; margin: 0 0 8; }
+.preview-item { padding: 8 0; border-bottom: 1px solid #1E1F3A; font-size: 12; line-height: 1.5; }
+.preview-num { color: #C9A84C; font-weight: 700; margin-right: 6; }
+.preview-text { color: #D0D0E0; }
 </style>
 </head>
 <body>
-<h1>Bulk Hadith Import</h1>
+<h1>Universal Book Import</h1>
 
 <label>Backend API URL</label>
 <input id="apiUrl" value="https://clintapp-backend.vercel.app/api" />
 
-<label>Choose JSON file (hadith-api format)</label>
+<label>Choose JSON file (any format)</label>
 <input type="file" id="fileInput" accept=".json" />
 
 <div class="file-info" id="fileInfo"></div>
@@ -34,6 +39,11 @@ progress { width: 100%; height: 8; border-radius: 4; margin-top: 8; }
 <progress id="progress" value="0" max="100"></progress>
 <div id="log"></div>
 
+<div id="preview">
+  <h3>Preview</h3>
+  <div id="previewContent"></div>
+</div>
+
 <script>
 const apiUrl = document.getElementById('apiUrl');
 const fileInput = document.getElementById('fileInput');
@@ -41,66 +51,152 @@ const importBtn = document.getElementById('importBtn');
 const progress = document.getElementById('progress');
 const log = document.getElementById('log');
 const fileInfo = document.getElementById('fileInfo');
+const preview = document.getElementById('preview');
+const previewContent = document.getElementById('previewContent');
 
-function detectIsEnglish(source) {
-  const first = source.hadiths?.[0]?.text || source.chapters?.[0]?.verses?.[0]?.text || '';
-  if (!first) return false;
-  return !/[\u0600-\u06FF]/.test(first);
+function hasArabic(t) { return /[\u0600-\u06FF]/.test(t); }
+
+function normalizeAny(source) {
+  if (source.metadata && Array.isArray(source.hadiths)) return transformHadiths(source);
+  return extractAll(source);
 }
 
 function transformHadiths(source) {
-  const bookName = source.metadata?.name?.trim() || '';
-  const sections = source.metadata?.sections || {};
+  const name = source.metadata?.name?.trim() || '';
+  const sec = source.metadata?.sections || {};
   const raw = source.hadiths || [];
-  const isEnglish = detectIsEnglish(source);
+  const eng = !hasArabic(raw[0]?.text || '');
   return raw.map(h => ({
-    book: bookName,
-    chapter: sections[String(h.reference?.book)] || '',
-    chapterId: h.reference?.book ?? null,
+    book: name, chapter: sec[String(h.reference?.book)] || '', chapterId: h.reference?.book ?? null,
     hadithNumber: h.hadithnumber,
-    arabic: isEnglish ? '' : (h.text || ''),
-    english: isEnglish ? (h.text || '') : (h.english || ''),
-    amharic: h.amharic || '',
-    grade: Array.isArray(h.grades) && h.grades[0] ? (h.grades[0].grade || h.grades[0].name || '') : '',
-    reference: h.reference || {},
+    arabic: eng ? '' : (h.text || ''), english: eng ? (h.text || '') : (h.english || ''),
+    amharic: h.amharic || '', grade: Array.isArray(h.grades) && h.grades[0] ? (h.grades[0].grade || h.grades[0].name || '') : '',
+    narrator: '', reference: h.reference || {},
   }));
 }
 
-function transformBible(source) {
-  const bookName = source.book?.trim() || '';
-  const chapters = source.chapters || [];
-  const out = [];
-  for (const ch of chapters) {
-    const chNum = ch.chapter || '1';
-    const verses = ch.verses || [];
-    for (const v of verses) {
-      out.push({
-        book: bookName,
-        chapter: chNum,
-        hadithNumber: Number(v.verse),
-        arabic: '',
-        english: v.text || '',
-        amharic: v.amharic || '',
-        grade: '',
-        narrator: '',
-        reference: {},
-      });
-    }
+function extractAll(source) {
+  const book = source.book || source.title || source.name || source.id || 'Book';
+  const items = [];
+
+  function add(num, text, ch) {
+    const n = Number(num) || (items.length + 1);
+    items.push({ book, chapter: ch || '', hadithNumber: n, arabic: '', english: String(text), amharic: '', grade: '', narrator: '', reference: {} });
   }
-  return out;
+
+  function pullText(v) {
+    if (typeof v === 'string') return v;
+    if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+    if (!v || typeof v !== 'object') return '';
+    return v.text || v.content || v.english || v.arabic || v.verseText || '';
+  }
+
+  function pullNum(v, fallback) {
+    return Number(v?.verse ?? v?.number ?? v?.id ?? v?.chapter ?? fallback) || fallback;
+  }
+
+  function pullCh(v) { return v?.chapter || v?.section || ''; }
+
+  if (Array.isArray(source)) {
+    for (let i = 0; i < source.length; i++) {
+      const v = source[i];
+      add(pullNum(v, i + 1), pullText(v) || JSON.stringify(v), pullCh(v));
+    }
+    return items;
+  }
+
+  if (source.chapters && Array.isArray(source.chapters)) {
+    let idx = 0;
+    for (const ch of source.chapters) {
+      const chNum = ch.chapter || ch.number || ch.id || ch.title || String(idx + 1);
+      const verses = ch.verses || ch.content || ch.paragraphs || ch.items || ch.lines || ch.texts || [];
+      const arr = Array.isArray(verses) ? verses : (typeof verses === 'string' ? [verses] : []);
+      let vi = 0;
+      for (const v of arr) {
+        vi++;
+        add(pullNum(v, vi), pullText(v) || JSON.stringify(v), chNum);
+      }
+      idx++;
+    }
+    return items;
+  }
+
+  if (source.sections && Array.isArray(source.sections)) {
+    for (const sec of source.sections) {
+      const sNum = sec.section || sec.number || sec.id || sec.title || String(items.length + 1);
+      const t = sec.text || sec.content || '';
+      if (t && typeof t === 'string') add(1, t, sNum);
+      const sub = sec.items || sec.verses || [];
+      if (Array.isArray(sub)) {
+        for (const v of sub) add(pullNum(v, items.length + 1), pullText(v) || JSON.stringify(v), sNum);
+      }
+    }
+    return items;
+  }
+
+  if (source.pages && Array.isArray(source.pages)) {
+    for (const p of source.pages) {
+      const pNum = p.page || p.number || p.id || String(items.length + 1);
+      const t = p.text || p.content || '';
+      if (t && typeof t === 'string') add(pNum, t);
+    }
+    return items;
+  }
+
+  const body = source.content || source.text || source.body;
+  if (body) {
+    if (typeof body === 'string') { add(1, body); return items; }
+    if (typeof body === 'object') return extractAll(body);
+  }
+
+  const numKeys = Object.keys(source).filter(k => /^\d+$/.test(k)).map(Number).sort((a, b) => a - b);
+  if (numKeys.length > 0) {
+    for (const k of numKeys) add(k, typeof source[k] === 'string' ? source[k] : JSON.stringify(source[k]));
+    return items;
+  }
+
+  const fallbackFields = ['description', 'summary', 'introduction', 'data', 'verses', 'lines', 'entries'];
+  for (const key of fallbackFields) {
+    if (Array.isArray(source[key])) {
+      for (let i = 0; i < source[key].length; i++) {
+        const v = source[key][i];
+        add(pullNum(v, i + 1), pullText(v) || JSON.stringify(v), pullCh(v));
+      }
+      return items;
+    }
+    if (source[key] && typeof source[key] === 'string') { add(1, source[key]); return items; }
+  }
+
+  add(1, JSON.stringify(source));
+  return items;
 }
 
-function normalize(source) {
-  if (source.metadata && Array.isArray(source.hadiths)) return transformHadiths(source);
-  if (source.book && Array.isArray(source.chapters)) return transformBible(source);
-  return Array.isArray(source) ? source : [source];
+function showPreview(items, total) {
+  const show = Math.min(5, items.length);
+  previewContent.innerHTML = items.slice(0, show).map(item =>
+    `<div class="preview-item"><span class="preview-num">#${item.hadithNumber}</span><span class="preview-text">${escapeHtml(item.english.slice(0, 200))}</span></div>`
+  ).join('');
+  if (total > show) {
+    previewContent.innerHTML += `<div class="preview-item" style="color:#7878A0">... and ${total - show} more items</div>`;
+  }
+  preview.style.display = 'block';
 }
 
-function appendLog(msg, type = 'info') {
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function appendLog(msg, type) {
   const div = document.createElement('div');
-  div.className = type;
+  div.className = type || 'info';
   div.textContent = msg;
   log.appendChild(div);
+}
+
+function getBookLabel(source) {
+  return source.metadata?.name || source.book || source.title || source.name || 'Book';
 }
 
 fileInput.addEventListener('change', () => {
@@ -112,64 +208,46 @@ fileInput.addEventListener('change', () => {
     fileInfo.textContent = '';
     importBtn.disabled = true;
   }
+  preview.style.display = 'none';
 });
 
 importBtn.addEventListener('click', async () => {
   const file = fileInput.files?.[0];
   if (!file) return;
-  
   importBtn.disabled = true;
   log.innerHTML = '';
   progress.value = 0;
-  
+  preview.style.display = 'none';
   try {
     const text = await file.text();
     const source = JSON.parse(text);
-    const hadiths = normalize(source);
+    const hadiths = normalizeAny(source);
     const total = hadiths.length;
-    const bookLabel = source.metadata?.name || source.book || file.name;
-    
-    appendLog(`Parsed ${total} hadiths from "${bookLabel}"`, 'info');
-    appendLog(`Detected: ${detectIsEnglish(source) ? 'English' : 'Arabic'} edition`, 'info');
-    
+    const bookLabel = getBookLabel(source);
+    appendLog(`Parsed ${total} items from "${bookLabel}"`, 'info');
     const BATCH = 500;
-    let imported = 0;
-    let skipped = 0;
+    let imported = 0, skipped = 0;
     const url = apiUrl.value.replace(/\/$/, '');
-    
     for (let i = 0; i < total; i += BATCH) {
       const batch = hadiths.slice(i, i + BATCH);
-      const pct = Math.round(i / total * 100);
-      progress.value = pct;
-      
-      appendLog(`Sending batch ${Math.floor(i/BATCH)+1}/${Math.ceil(total/BATCH)} (${batch.length} hadiths)...`, 'info');
-      
+      progress.value = Math.round(i / total * 100);
+      appendLog(`Sending batch ${Math.floor(i/BATCH)+1}/${Math.ceil(total/BATCH)} (${batch.length} items)...`, 'info');
       const res = await fetch(`${url}/hadiths/bulk?mode=upsert`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(batch),
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(batch),
       });
-      
-      if (!res.ok) {
-        const errText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errText.slice(0, 200)}`);
-      }
-      
+      if (!res.ok) { const e = await res.text(); throw new Error(`HTTP ${res.status}: ${e.slice(0, 200)}`); }
       const data = await res.json();
       imported += data.count || 0;
       skipped += data.skipped || 0;
-      
-      appendLog(`  ✓ ${data.count} imported${data.skipped ? `, ${data.skipped} skipped` : ''}`, 'success');
+      appendLog(`  \u2713 ${data.count} imported${data.skipped ? `, ${data.skipped} skipped` : ''}`, 'success');
     }
-    
     progress.value = 100;
-    appendLog(`\n✅ Done! ${imported} imported, ${skipped} skipped from "${bookLabel}"`, 'success');
-    
+    appendLog(`\n\u2705 Done! ${imported} imported, ${skipped} skipped from "${bookLabel}"`, 'success');
+    showPreview(hadiths, total);
   } catch (err) {
-    appendLog(`\n❌ ${err.message}`, 'error');
+    appendLog(`\n\u274c ${err.message}`, 'error');
     progress.value = 0;
   }
-  
   importBtn.disabled = false;
 });
 </script>

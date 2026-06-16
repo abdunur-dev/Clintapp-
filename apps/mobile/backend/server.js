@@ -43,9 +43,9 @@ app.get("/bulk-import", (req, res) => {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Bulk Hadith Import</title>
+<title>Universal Book Import</title>
 <style>
-body{background:#0B0C1A;color:#fff;font-family:system-ui,sans-serif;padding:20px;max-width:600px;margin:0 auto}
+body{background:#0B0C1A;color:#fff;font-family:system-ui,sans-serif;padding:20px;max-width:700px;margin:0 auto}
 h1{color:#C9A84C;font-size:20px}
 label{display:block;margin:16px 0 6px;font-size:12px;color:#A0A0C0}
 input,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #252650;background:#13142A;color:#fff;font-size:13px;box-sizing:border-box}
@@ -57,32 +57,47 @@ button:disabled{opacity:0.5}
 .info{color:#A0A0C0}
 .file-info{margin:8px 0;font-size:12px;color:#7878A0}
 progress{width:100%;height:8px;border-radius:4px;margin-top:8px}
+#preview{margin-top:20px;display:none}
+#preview h3{color:#C9A84C;font-size:14px;margin:0 0 8px}
+.preview-item{padding:8px 0;border-bottom:1px solid #1E1F3A;font-size:12px;line-height:1.5}
+.preview-num{color:#C9A84C;font-weight:700;margin-right:6px}
+.preview-text{color:#D0D0E0}
 </style>
 </head>
 <body>
-<h1>Bulk Hadith Import</h1>
+<h1>Universal Book Import</h1>
 <label>Backend API URL</label>
 <input id="apiUrl" value="https://clintapp-backend.vercel.app/api" />
-<label>Choose JSON file (hadith-api format)</label>
+<label>Choose JSON file (any format)</label>
 <input type="file" id="fileInput" accept=".json" />
 <div class="file-info" id="fileInfo"></div>
 <button id="importBtn" disabled>Import</button>
 <progress id="progress" value="0" max="100"></progress>
 <div id="log"></div>
+<div id="preview"><h3>Preview</h3><div id="previewContent"></div></div>
 <script>
-const apiUrl=document.getElementById('apiUrl');
-const fileInput=document.getElementById('fileInput');
-const importBtn=document.getElementById('importBtn');
-const progress=document.getElementById('progress');
-const log=document.getElementById('log');
-const fileInfo=document.getElementById('fileInfo');
-function isEnglish(source){const t=source.hadiths?.[0]?.text||source.chapters?.[0]?.verses?.[0]?.text||'';return t?!/[\\u0600-\\u06FF]/.test(t):false}
-function transform(source){const name=source.metadata?.name?.trim()||'',sec=source.metadata?.sections||{},raw=source.hadiths||[],eng=isEnglish(source);return raw.map(h=>({book:name,chapter:sec[String(h.reference?.book)]||'',chapterId:h.reference?.book??null,hadithNumber:h.hadithnumber,arabic:eng?'':h.text||'',english:eng?h.text||'':h.english||'',amharic:h.amharic||'',grade:Array.isArray(h.grades)&&h.grades[0]?(h.grades[0].grade||h.grades[0].name||''):'',reference:h.reference||{}}))}
-function transformBible(s){const n=s.book?.trim()||'',c=s.chapters||[],o=[];for(const ch of c){const cn=ch.chapter||'1',v=ch.verses||[];for(const x of v){o.push({book:n,chapter:cn,hadithNumber:Number(x.verse),arabic:'',english:x.text||'',amharic:x.amharic||'',narrator:'',grade:'',reference:{}})}}return o}
-function normalize(s){if(s.metadata&&Array.isArray(s.hadiths))return transform(s);if(s.book&&Array.isArray(s.chapters))return transformBible(s);return Array.isArray(s)?s:[s]}
-function add(m,t='info'){const d=document.createElement('div');d.className=t;d.textContent=m;log.appendChild(d)}
-fileInput.addEventListener('change',()=>{const f=fileInput.files?.[0];if(f){fileInfo.textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';importBtn.disabled=false}else{fileInfo.textContent='';importBtn.disabled=true}});
-importBtn.addEventListener('click',async()=>{const file=fileInput.files?.[0];if(!file)return;importBtn.disabled=true;log.innerHTML='';progress.value=0;try{const text=await file.text(),source=JSON.parse(text),hadiths=normalize(source),total=hadiths.length,label=source.metadata?.name||source.book||file.name;add('Parsed '+total+' hadiths from "'+label+'"','info');add('Detected: '+(isEnglish(source)?'English':'Arabic')+' edition','info');const BATCH=500;let imported=0,skipped=0,url=apiUrl.value.replace(/\\/+$/,'');for(let i=0;i<total;i+=BATCH){const batch=hadiths.slice(i,i+BATCH);progress.value=Math.round(i/total*100);add('Sending batch '+(Math.floor(i/BATCH)+1)+'/'+Math.ceil(total/BATCH)+' ('+batch.length+' hadiths)...','info');const res=await fetch(url+'/hadiths/bulk?mode=upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(batch)});if(!res.ok){const e=await res.text();throw new Error('HTTP '+res.status+': '+e.slice(0,200))}const data=await res.json();imported+=data.count||0;skipped+=data.skipped||0;add('  \\u2713 '+data.count+' updated'+(data.skipped?', '+data.skipped+' errors':''),'success')}progress.value=100;add('\\n\\u2705 Done! '+imported+' updated, '+skipped+' errors from "'+label+'"','success')}catch(err){add('\\n\\u274c '+err.message,'error');progress.value=0}importBtn.disabled=false});
+const apiUrl=document.getElementById('apiUrl'),fileInput=document.getElementById('fileInput'),importBtn=document.getElementById('importBtn'),progress=document.getElementById('progress'),log=document.getElementById('log'),fileInfo=document.getElementById('fileInfo'),preview=document.getElementById('preview'),previewContent=document.getElementById('previewContent');
+function hasArabic(t){return/[\\u0600-\\u06FF]/.test(t)}
+function normalizeAny(s){if(s.metadata&&Array.isArray(s.hadiths))return transformH(s);return extractAll(s)}
+function transformH(s){const n=s.metadata?.name?.trim()||'',sec=s.metadata?.sections||{},raw=s.hadiths||[],eng=!hasArabic(raw[0]?.text||'');return raw.map(h=>({book:n,chapter:sec[String(h.reference?.book)]||'',chapterId:h.reference?.book??null,hadithNumber:h.hadithnumber,arabic:eng?'':h.text||'',english:eng?h.text||'':h.english||'',amharic:h.amharic||'',grade:Array.isArray(h.grades)&&h.grades[0]?(h.grades[0].grade||h.grades[0].name||''):'',narrator:'',reference:h.reference||{}}))}
+function extractAll(s){const b=s.book||s.title||s.name||s.id||'Book',items=[];function add(num,text,ch){const n=Number(num)||(items.length+1);items.push({book:b,chapter:ch||'',hadithNumber:n,arabic:'',english:String(text),amharic:'',grade:'',narrator:'',reference:{}})}
+function pt(v){if(typeof v==='string')return v;if(typeof v==='number'||typeof v==='boolean')return String(v);if(!v||typeof v!=='object')return'';return v.text||v.content||v.english||v.arabic||v.verseText||''}
+function pn(v,f){return Number(v?.verse??v?.number??v?.id??v?.chapter??f)||f}
+function pc(v){return v?.chapter||v?.section||''}
+if(Array.isArray(s)){for(let i=0;i<s.length;i++){const v=s[i];add(pn(v,i+1),pt(v)||JSON.stringify(v),pc(v))}return items}
+if(s.chapters&&Array.isArray(s.chapters)){let idx=0;for(const ch of s.chapters){const cn=ch.chapter||ch.number||ch.id||ch.title||String(idx+1);const verses=ch.verses||ch.content||ch.paragraphs||ch.items||ch.lines||ch.texts||[];const arr=Array.isArray(verses)?verses:(typeof verses==='string'?[verses]:[]);let vi=0;for(const v of arr){vi++;add(pn(v,vi),pt(v)||JSON.stringify(v),cn)}idx++}return items}
+if(s.sections&&Array.isArray(s.sections)){for(const sec of s.sections){const sn=sec.section||sec.number||sec.id||sec.title||String(items.length+1);const t=sec.text||sec.content||'';if(t&&typeof t==='string')add(1,t,sn);const sub=sec.items||sec.verses||[];if(Array.isArray(sub)){for(const v of sub)add(pn(v,items.length+1),pt(v)||JSON.stringify(v),sn)}}return items}
+if(s.pages&&Array.isArray(s.pages)){for(const p of s.pages){const pn2=p.page||p.number||p.id||String(items.length+1);const t=p.text||p.content||'';if(t&&typeof t==='string')add(pn2,t)}return items}
+const body=s.content||s.text||s.body;if(body){if(typeof body==='string'){add(1,body);return items}if(typeof body==='object')return extractAll(body)}
+const numKeys=Object.keys(s).filter(k=>/^\\d+$/.test(k)).map(Number).sort((a,b)=>a-b);if(numKeys.length>0){for(const k of numKeys)add(k,typeof s[k]==='string'?s[k]:JSON.stringify(s[k]));return items}
+const fb=['description','summary','introduction','data','verses','lines','entries'];for(const key of fb){if(Array.isArray(s[key])){for(let i=0;i<s[key].length;i++){const v=s[key][i];add(pn(v,i+1),pt(v)||JSON.stringify(v),pc(v))}return items}if(s[key]&&typeof s[key]==='string'){add(1,s[key]);return items}}
+add(1,JSON.stringify(s));return items}
+function showPreview(items,total){const show=Math.min(5,items.length);previewContent.innerHTML=items.slice(0,show).map(i=>'<div class=\"preview-item\"><span class=\"preview-num\">#'+i.hadithNumber+'</span><span class=\"preview-text\">'+esc(i.english.slice(0,200))+'</span></div>').join('');if(total>show)previewContent.innerHTML+='<div class=\"preview-item\" style=\"color:#7878A0\">... and '+(total-show)+' more items</div>';preview.style.display='block'}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML}
+function add(m,t){const d=document.createElement('div');d.className=t||'info';d.textContent=m;log.appendChild(d)}
+function label(s){return s.metadata?.name||s.book||s.title||s.name||'Book'}
+fileInput.addEventListener('change',()=>{const f=fileInput.files?.[0];if(f){fileInfo.textContent=f.name+' ('+(f.size/1024/1024).toFixed(1)+' MB)';importBtn.disabled=false}else{fileInfo.textContent='';importBtn.disabled=true}preview.style.display='none'});
+importBtn.addEventListener('click',async()=>{const file=fileInput.files?.[0];if(!file)return;importBtn.disabled=true;log.innerHTML='';progress.value=0;preview.style.display='none';try{const text=await file.text(),source=JSON.parse(text),hadiths=normalizeAny(source),total=hadiths.length,bookLabel=label(source);add('Parsed '+total+' items from "'+bookLabel+'"','info');const BATCH=500;let imported=0,skipped=0,url=apiUrl.value.replace(/\\/+$/,'');for(let i=0;i<total;i+=BATCH){const batch=hadiths.slice(i,i+BATCH);progress.value=Math.round(i/total*100);add('Sending batch '+(Math.floor(i/BATCH)+1)+'/'+Math.ceil(total/BATCH)+' ('+batch.length+' items)...','info');const res=await fetch(url+'/hadiths/bulk?mode=upsert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(batch)});if(!res.ok){const e=await res.text();throw new Error('HTTP '+res.status+': '+e.slice(0,200))}const data=await res.json();imported+=data.count||0;skipped+=data.skipped||0;add('  \\u2713 '+data.count+' imported'+(data.skipped?', '+data.skipped+' skipped':''),'success')}progress.value=100;add('\\n\\u2705 Done! '+imported+' imported, '+skipped+' skipped from "'+bookLabel+'"','success');showPreview(hadiths,total)}catch(err){add('\\n\\u274c '+err.message,'error');progress.value=0}importBtn.disabled=false});
 </script>
 </body>
 </html>`);
