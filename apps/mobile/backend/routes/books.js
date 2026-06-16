@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import path from "path";
 import Book from "../models/Book.js";
+import Hadith from "../models/Hadith.js";
 import { createUploader } from "../config/cloudinary.js";
 
 const hasCloudinary = !!(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET);
@@ -109,7 +110,11 @@ router.delete("/:id", async (req, res) => {
   try {
     const book = await Book.findByIdAndDelete(req.params.id);
     if (!book) return res.status(404).json({ error: "Book not found" });
-    res.json({ message: "Book deleted" });
+    // Cascade delete: remove associated hadiths
+    if (book.bookSlug) {
+      await Hadith.deleteMany({ book: book.bookSlug });
+    }
+    res.json({ message: "Book deleted", hadithsRemoved: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
