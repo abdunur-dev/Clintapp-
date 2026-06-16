@@ -77,8 +77,10 @@ export default function BookDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [purchasedBooks, setPurchasedBooks] = useState([]);
   const [underReviewBooks, setUnderReviewBooks] = useState([]);
+  const [rejectedBooks, setRejectedBooks] = useState([]);
   const isPurchased = purchasedBooks.includes(String(id));
   const isUnderReview = underReviewBooks.includes(String(id));
+  const isRejected = rejectedBooks.includes(String(id));
 
   useEffect(() => {
     Promise.all([
@@ -89,25 +91,33 @@ export default function BookDetailScreen() {
       setBook(bookData);
       const purchased = [];
       const pending = [];
+      const rejected = [];
+      const orderMap = {};
       orders.forEach((o) => {
+        orderMap[String(o._id)] = o;
         o.items?.forEach((item) => {
-          const bid = String(item.bookId || item.bookId);
+          const bid = String(item.bookId?._id || item.bookId);
           if (o.status === "confirmed") purchased.push(bid);
-          else if (!purchased.includes(bid)) pending.push(bid);
         });
       });
-      const receiptOrderIds = new Set(receipts.filter((r) => r.status === "pending").map((r) => String(r.orderId?._id || r.orderId)));
-      orders.forEach((o) => {
-        const oid = String(o._id);
-        if (receiptOrderIds.has(oid) && !purchased.includes(oid)) {
-          o.items?.forEach((item) => {
-            const bid = String(item.bookId || item.bookId);
-            if (!purchased.includes(bid) && !pending.includes(bid)) pending.push(bid);
+      receipts.forEach((r) => {
+        const oid = String(r.orderId?._id || r.orderId);
+        const order = orderMap[oid];
+        if (r.status === "rejected") {
+          order?.items?.forEach((item) => {
+            const bid = String(item.bookId?._id || item.bookId);
+            if (!purchased.includes(bid)) rejected.push(bid);
+          });
+        } else if (r.status === "pending") {
+          order?.items?.forEach((item) => {
+            const bid = String(item.bookId?._id || item.bookId);
+            if (!purchased.includes(bid) && !rejected.includes(bid)) pending.push(bid);
           });
         }
       });
       setPurchasedBooks(purchased);
       setUnderReviewBooks(pending);
+      setRejectedBooks(rejected);
     }).catch((err) => {
       console.error('Book fetch error:', err);
     }).finally(() => setLoading(false));
@@ -774,6 +784,35 @@ export default function BookDetailScreen() {
               }}
             >
               Under Review
+            </Text>
+          </TouchableOpacity>
+        ) : isRejected ? (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={handleBuy}
+            style={{
+              width: "100%",
+              height: 54,
+              borderRadius: RADIUS.md,
+              backgroundColor: COLORS.card,
+              justifyContent: "center",
+              alignItems: "center",
+              flexDirection: "row",
+              gap: 10,
+              borderWidth: 1,
+              borderColor: "#ff4444" + "60",
+            }}
+          >
+            <ShoppingCart color="#ff4444" size={18} strokeWidth={2} />
+            <Text
+              style={{
+                color: "#ff4444",
+                fontFamily: "CrimsonPro_700Bold",
+                fontSize: 17,
+                letterSpacing: 0.5,
+              }}
+            >
+              Rejected — Buy Again
             </Text>
           </TouchableOpacity>
         ) : (
