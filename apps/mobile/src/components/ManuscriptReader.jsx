@@ -23,7 +23,7 @@ import { api } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-const HADITH_LANGS = ['arabic', 'english', 'amharic'];
+const HADITH_LANGS = ['arabic', 'english'];
 
 export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTitle }) {
   const insets = useSafeAreaInsets();
@@ -64,11 +64,6 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
     panelOpen, setPanelOpen,
     setPanelLang,
   } = useReaderStore();
-
-  const handleAmharicTranslate = () => {
-    if (!verses.length) return;
-    setRightLang('amharic');
-  };
 
   // Ensure selected languages have content
   useEffect(() => {
@@ -258,13 +253,7 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
           </View>
         </View>
 
-        <TouchableOpacity
-          onPress={handleAmharicTranslate}
-          activeOpacity={0.7}
-          style={styles.amharicBtn}
-        >
-          <Text style={styles.amharicBtnText}>አማርኛ</Text>
-        </TouchableOpacity>
+
       </View>
 
       {/* Info text for hadiths */}
@@ -565,21 +554,5 @@ const styles = StyleSheet.create({
     color: COLORS.gold,
     fontSize: 12,
     fontFamily: 'CrimsonPro_700Bold',
-  },
-  amharicBtn: {
-    width: 42,
-    height: 32,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: COLORS.gold + '66',
-    backgroundColor: COLORS.gold + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  amharicBtnText: {
-    fontSize: 11,
-    color: COLORS.gold,
-    fontFamily: 'CrimsonPro_700Bold',
-    letterSpacing: 1,
   },
 });

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const API = import.meta.env.VITE_API_URL || "/api";
+const API = import.meta.env.VITE_API_URL || "https://clintapp-backend.vercel.app/api";
 const UPLOADS = import.meta.env.VITE_UPLOADS_URL || "";
 
 const theme = {
@@ -749,17 +749,25 @@ function HadithsPanel() {
 
   useEffect(() => { fetchHadiths(); fetchBooks(); }, []);
 
+  function detectIsEnglish(source) {
+    const first = source.hadiths?.[0]?.text || "";
+    if (!first) return false;
+    const hasArabic = /[\u0600-\u06FF]/.test(first);
+    return !hasArabic;
+  }
+
   function transformSourceHadiths(source) {
     const bookName = source.metadata?.name?.trim() || "";
     const sections = source.metadata?.sections || {};
     const raw = source.hadiths || [];
+    const isEnglish = detectIsEnglish(source);
     return raw.map((h) => ({
       book: bookName,
       chapter: sections[String(h.reference?.book)] || "",
       chapterId: h.reference?.book ?? null,
       hadithNumber: h.hadithnumber,
-      arabic: h.text || "",
-      english: h.english || "",
+      arabic: isEnglish ? "" : (h.text || ""),
+      english: isEnglish ? (h.text || "") : (h.english || ""),
       amharic: h.amharic || "",
       grade:
         Array.isArray(h.grades) && h.grades[0]
