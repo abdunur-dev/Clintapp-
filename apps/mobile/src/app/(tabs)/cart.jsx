@@ -178,8 +178,6 @@ export default function CartScreen() {
   const { items, removeItem, updateQuantity, clearCart, getTotal, getCount } =
     useCartStore();
 
-  if (!fontsLoaded) return null;
-
   const total = getTotal();
   const count = getCount();
   const delivery = total >= 500 ? 0 : 50;

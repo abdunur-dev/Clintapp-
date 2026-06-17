@@ -153,7 +153,7 @@ export default function NotesScreen() {
     try {
       const data = await api.getNotes();
       if (data.length > 0) {
-        setNotes(data);
+        setNotes(data.map(n => ({ ...n, id: n.id || n._id })));
         return;
       }
     } catch {}
@@ -248,8 +248,6 @@ export default function NotesScreen() {
     if (searchQuery && !n.title.toLowerCase().includes(searchQuery.toLowerCase()) && !n.note.toLowerCase().includes(searchQuery.toLowerCase())) return false;
     return true;
   });
-
-  if (!fontsLoaded) return null;
 
   return (
     <View style={styles.screen}>

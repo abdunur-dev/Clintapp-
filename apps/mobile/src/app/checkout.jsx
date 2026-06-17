@@ -80,8 +80,6 @@ export default function CheckoutScreen() {
     }
   };
 
-  if (!fontsLoaded) return null;
-
   if (success) {
     return (
       <View style={[styles.screen, { paddingTop: insets.top }]}>
@@ -202,7 +200,7 @@ export default function CheckoutScreen() {
         </TouchableOpacity>
       )}
 
-      <View style={styles.bottomBar}>
+      <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, SPACING.lg) }]}>
         <TouchableOpacity
           onPress={handleSubmitReceipt}
           disabled={!receiptUri || uploading}
@@ -243,7 +241,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     color: COLORS.white,
   },
-  content: { paddingHorizontal: SPACING.xl, paddingBottom: 120 },
+  content: { paddingHorizontal: SPACING.xl, paddingBottom: 160 },
   paymentInfo: {
     backgroundColor: COLORS.card,
     borderRadius: RADIUS.lg,

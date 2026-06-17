@@ -16,8 +16,7 @@ import {
   Church,
   Feather,
   Heart,
-  Star,
-  Download,
+  ScrollText,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -31,17 +30,15 @@ import { api, getImageUrl } from "../../services/api";
 
 const SAVED_KEY = "library-saved-ids";
 
-const CATEGORIES = ["All", "Islamic", "Hadith", "Christianity", "Philosophy", "Fiction"];
-
-const SECTION_CONFIG = {
-  Islamic: { icon: Moon, categories: ["Islamic"], includeHadith: true },
-  Hadith: { icon: Moon, categories: [], includeHadith: true },
-  Christianity: { icon: Church, categories: ["Christianity"], includeHadith: false },
-  Philosophy: { icon: Feather, categories: ["Philosophy"], includeHadith: false },
-  Fiction: { icon: BookOpen, categories: ["Fiction"], includeHadith: false },
+const CAT_ICON_MAP = {
+  islamic: Moon,
+  hadith: BookOpen,
+  christianity: Church,
+  philosophy: Feather,
+  fiction: BookOpen,
+  scrolls: ScrollText,
+  general: BookOpen,
 };
-
-const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
 function StarField() {
   const stars = Array.from({ length: 20 }, (_, i) => ({
@@ -72,8 +69,11 @@ function StarField() {
   );
 }
 
+const ICON_MAP = { Moon, Church, Feather, BookOpen, ScrollText };
+
 function BookCard({ book, onPress, onToggleSaved, saved }) {
-  const IconComponent = ICON_MAP[book.iconName] || BookOpen;
+  const iconName = book.iconName === "Scroll" ? "ScrollText" : book.iconName || "BookOpen";
+  const IconComponent = ICON_MAP[iconName] || BookOpen;
   const coverSrc = getImageUrl(book.coverUrl);
   return (
     <TouchableOpacity
@@ -142,50 +142,15 @@ function BookCard({ book, onPress, onToggleSaved, saved }) {
         >
           {book.author} · {book.pages} pages
         </Text>
-        <View
-          style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+        <Text
+          style={{
+            color: COLORS.muted,
+            fontSize: 11,
+            fontFamily: "CrimsonPro_400Regular",
+          }}
         >
-          <Star color={COLORS.gold} size={11} fill={COLORS.gold} />
-          <Text
-            style={{
-              color: COLORS.gold,
-              fontSize: 11,
-              fontFamily: "CrimsonPro_400Regular",
-            }}
-          >
-            {book.rating}
-          </Text>
-          <View
-            style={{
-              width: 1,
-              height: 10,
-              backgroundColor: COLORS.cardBorder,
-              marginHorizontal: 6,
-            }}
-          />
-          <Text
-            style={{
-              color: COLORS.muted,
-              fontSize: 11,
-              fontFamily: "CrimsonPro_400Regular",
-            }}
-          >
-            {book.category}
-          </Text>
-          {saved && (
-            <>
-              <View
-                style={{
-                  width: 1,
-                  height: 10,
-                  backgroundColor: COLORS.cardBorder,
-                  marginHorizontal: 4,
-                }}
-              />
-              <Heart color={COLORS.gold} size={10} fill={COLORS.gold} strokeWidth={2} />
-            </>
-          )}
-        </View>
+          {book.category}
+        </Text>
       </View>
 
       <View style={{ alignItems: "center", gap: 10 }}>
@@ -196,20 +161,6 @@ function BookCard({ book, onPress, onToggleSaved, saved }) {
             fill={saved ? COLORS.gold : "none"}
             strokeWidth={1.8}
           />
-        </TouchableOpacity>
-        <TouchableOpacity
-          activeOpacity={0.8}
-          onPress={onPress}
-          style={{
-            backgroundColor: COLORS.gold,
-            paddingHorizontal: 10,
-            paddingVertical: 5,
-            borderRadius: RADIUS.sm,
-            borderWidth: 1,
-            borderColor: COLORS.goldLight,
-          }}
-        >
-          <Download color={COLORS.bg} size={14} strokeWidth={2.5} />
         </TouchableOpacity>
       </View>
     </TouchableOpacity>
@@ -259,15 +210,14 @@ function SectionHeader({ title, icon: Icon, count }) {
   );
 }
 
-function filterBooksForSection(books, sectionKey) {
-  const cfg = SECTION_CONFIG[sectionKey];
-  if (!cfg) return [];
-  return books.filter((b) => {
-    const inCategory = cfg.categories.includes(b.category);
-    const isHadith = b.sacredType === "hadith";
-    if (cfg.includeHadith && isHadith) return true;
-    return inCategory;
+function groupByCategory(books) {
+  const map = {};
+  books.forEach((b) => {
+    const cat = b.category || "Other";
+    if (!map[cat]) map[cat] = [];
+    map[cat].push(b);
   });
+  return Object.entries(map).map(([title, items]) => ({ title, items }));
 }
 
 export default function LibraryScreen() {
@@ -282,10 +232,10 @@ export default function LibraryScreen() {
   const scrollRef = useRef(null);
 
   useEffect(() => {
-    if (params.section && CATEGORIES.includes(params.section)) {
+    if (params.section && allCategories.includes(params.section)) {
       setActiveCat(params.section);
     }
-  }, [params.section]);
+  }, [params.section, books]);
 
   useEffect(() => {
     Promise.all([
@@ -298,6 +248,8 @@ export default function LibraryScreen() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  const allCategories = ["All", ...new Set(books.map(b => b.category).filter(Boolean))];
 
   const persistSaved = useCallback((ids) => {
     AsyncStorage.setItem(SAVED_KEY, JSON.stringify([...ids])).catch(() => {});
@@ -313,14 +265,9 @@ export default function LibraryScreen() {
     });
   };
 
-  if (!fontsLoaded) return null;
-
-  const sectionsToRender = activeCat === "All"
-    ? ["Islamic", "Hadith", "Christianity", "Philosophy", "Fiction"]
-    : [activeCat];
-
   const uniqueBooks = new Map();
   books.forEach((b) => uniqueBooks.set(b._id, b));
+  const groupedSections = groupByCategory([...uniqueBooks.values()]);
 
   if (loading) {
     return (
@@ -387,7 +334,7 @@ export default function LibraryScreen() {
         {[
           { label: "Total Books", value: uniqueBooks.size },
           { label: "Favorites", value: [...savedIds].length },
-          { label: "Categories", value: 5 },
+          { label: "Categories", value: allCategories.length - 1 },
         ].map((s, i) => (
           <View
             key={i}
@@ -431,7 +378,7 @@ export default function LibraryScreen() {
         style={{ flexGrow: 0, marginBottom: SPACING.lg }}
         contentContainerStyle={{ paddingHorizontal: SPACING.xl, gap: 10 }}
       >
-        {CATEGORIES.map((cat) => (
+        {allCategories.map((cat) => (
           <TouchableOpacity
             key={cat}
             onPress={() => setActiveCat(cat)}
@@ -467,29 +414,24 @@ export default function LibraryScreen() {
         }}
         showsVerticalScrollIndicator={false}
       >
-        {sectionsToRender.map((sectionKey) => {
-          const sectionBooks = filterBooksForSection([...uniqueBooks.values()], sectionKey);
-          if (sectionBooks.length === 0) return null;
-          const cfg = SECTION_CONFIG[sectionKey];
-          return (
-            <View key={sectionKey}>
-              <SectionHeader
-                title={sectionKey}
-                icon={cfg.icon}
-                count={sectionBooks.length}
+        {(activeCat === "All" ? groupedSections : groupedSections.filter(s => s.title === activeCat)).map((section) => (
+          <View key={section.title}>
+            <SectionHeader
+              title={section.title}
+              icon={CAT_ICON_MAP[section.title.toLowerCase()] || BookOpen}
+              count={section.items.length}
+            />
+            {section.items.map((book) => (
+              <BookCard
+                key={book._id}
+                book={book}
+                saved={savedIds.has(book._id)}
+                onPress={() => router.push(`/book/${book._id}`)}
+                onToggleSaved={() => toggleSaved(book._id)}
               />
-              {sectionBooks.map((book) => (
-                <BookCard
-                  key={book._id}
-                  book={book}
-                  saved={savedIds.has(book._id)}
-                  onPress={() => router.push(`/book/${book._id}`)}
-                  onToggleSaved={() => toggleSaved(book._id)}
-                />
-              ))}
-            </View>
-          );
-        })}
+            ))}
+          </View>
+        ))}
       </ScrollView>
     </View>
   );

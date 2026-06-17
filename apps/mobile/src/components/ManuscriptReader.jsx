@@ -14,8 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 import { COLORS, SPACING, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
-import { LANGUAGES, BOOKS_DATA_SACRED, getAvailableLangs } from '../data/sacred-texts';
-import { LOCAL_HADITHS } from '../data/hadiths';
+import { LANGUAGES, getAvailableLangs } from '../data/sacred-texts';
 import ParchmentPage from './ParchmentPage';
 import LanguageSelector from './LanguageSelector';
 import TranslationPanel from './TranslationPanel';
@@ -34,22 +33,20 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
 
   const isHadith = !!hadithSlug;
 
-  const book = isHadith
-    ? {
-        titleEn: hadithTitle || 'Hadith Collection',
-        chapters: hadiths.length > 0
-          ? [{ number: 1, title: hadithTitle || 'Hadith', verses: hadiths.map(h => ({
-              number: h.hadithNumber,
-              arabic: h.arabic,
-              english: h.english,
-              amharic: h.amharic,
-              chapter: h.chapter,
-              narrator: h.narrator,
-              grade: h.grade,
-            })) }]
-          : []
-      }
-    : BOOKS_DATA_SACRED[bookId];
+  const book = {
+    titleEn: hadithTitle || 'Book',
+    chapters: isHadith && hadiths.length > 0
+      ? [{ number: 1, title: hadithTitle || 'Hadith', verses: hadiths.map(h => ({
+          number: h.hadithNumber,
+          arabic: h.arabic,
+          english: h.english,
+          amharic: h.amharic,
+          chapter: h.chapter,
+          narrator: h.narrator,
+          grade: h.grade,
+        })) }]
+      : [],
+  };
 
   const availableLangs = isHadith
     ? HADITH_LANGS
@@ -98,20 +95,12 @@ export default function ManuscriptReader({ bookId, onBack, hadithSlug, hadithTit
     setTotalHadiths(0);
     setHadithsLoading(true);
     api.getHadiths({ book: hadithSlug, limit: HADITH_PAGE_SIZE, page: 1 }).then((res) => {
-      if (res.hadiths?.length) {
-        setHadiths(res.hadiths);
-        setTotalHadiths(res.total);
-        setHasMorePages(res.page < res.pages);
-      } else {
-        const local = LOCAL_HADITHS.filter((h) => h.book === hadithSlug);
-        setHadiths(local);
-        setTotalHadiths(local.length);
-        setHasMorePages(false);
-      }
+      setHadiths(res.hadiths || []);
+      setTotalHadiths(res.total || 0);
+      setHasMorePages(res.page && res.pages ? res.page < res.pages : false);
     }).catch(() => {
-      const local = LOCAL_HADITHS.filter((h) => h.book === hadithSlug);
-      setHadiths(local);
-      setTotalHadiths(local.length);
+      setHadiths([]);
+      setTotalHadiths(0);
       setHasMorePages(false);
     }).finally(() => setHadithsLoading(false));
   }, [hadithSlug]);

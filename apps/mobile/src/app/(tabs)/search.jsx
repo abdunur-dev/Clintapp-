@@ -17,9 +17,7 @@ import {
   Moon,
   Church,
   Feather,
-  Star,
   X,
-  TrendingUp,
 } from "lucide-react-native";
 import {
   useFonts,
@@ -29,11 +27,6 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, RADIUS, SHADOWS } from "../../theme/theme";
 import { api, getImageUrl } from "../../services/api";
-
-
-const TRENDING = [];
-
-const POPULAR_CATEGORIES = [];
 
 const ICON_MAP = { Moon, Church, Feather, BookOpen };
 
@@ -78,8 +71,6 @@ export default function SearchScreen() {
   useEffect(() => {
     api.getBooks().then(setAllBooks).catch(console.error).finally(() => setLoading(false));
   }, []);
-
-  if (!fontsLoaded) return null;
 
   const results =
     query.length > 1
@@ -227,6 +218,7 @@ export default function SearchScreen() {
               results.map((book) => (
                 <TouchableOpacity
                   key={book._id}
+                  onPress={() => router.push(`/book/${book._id}`)}
                   style={{
                     backgroundColor: COLORS.card,
                     borderRadius: 14,
@@ -284,268 +276,14 @@ export default function SearchScreen() {
                         color: COLORS.muted,
                       }}
                     >
-                      {book.author}
+                      {book.author} · {book.category}
                     </Text>
-                    <View
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        gap: 4,
-                        marginTop: 4,
-                      }}
-                    >
-                      <Star color={COLORS.gold} size={10} fill={COLORS.gold} />
-                      <Text
-                        style={{
-                          color: COLORS.gold,
-                          fontSize: 11,
-                          fontFamily: "CrimsonPro_400Regular",
-                        }}
-                      >
-                        {book.rating}
-                      </Text>
-                      <Text
-                        style={{
-                          color: COLORS.muted,
-                          fontSize: 11,
-                          fontFamily: "CrimsonPro_400Regular",
-                        }}
-                      >
-                        · {book.category}
-                      </Text>
-                    </View>
                   </View>
                 </TouchableOpacity>
               ))
             )}
           </>
-        ) : (
-          <>
-            {/* Trending */}
-            <View style={{ marginBottom: 24 }}>
-              <View
-                style={{
-                  flexDirection: "row",
-                  alignItems: "center",
-                  gap: 8,
-                  marginBottom: 14,
-                }}
-              >
-                <TrendingUp color={COLORS.gold} size={16} />
-                <Text
-                  style={{
-                    fontFamily: "CrimsonPro_700Bold",
-                    fontSize: 18,
-                    color: COLORS.white,
-                  }}
-                >
-                  Trending
-                </Text>
-              </View>
-              <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>
-                {TRENDING.map((term, i) => (
-                  <TouchableOpacity
-                    key={i}
-                    onPress={() => setQuery(term)}
-                    style={{
-                      backgroundColor: COLORS.card,
-                      borderRadius: 20,
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      borderWidth: 1,
-                      borderColor: COLORS.cardBorder,
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    <TrendingUp color={COLORS.gold} size={12} />
-                    <Text
-                      style={{
-                        fontFamily: "CrimsonPro_400Regular",
-                        fontSize: 13,
-                        color: COLORS.white,
-                      }}
-                    >
-                      {term}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Browse by Category */}
-            <Text
-              style={{
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 18,
-                color: COLORS.white,
-                marginBottom: 14,
-              }}
-            >
-              Browse by Category
-            </Text>
-            {POPULAR_CATEGORIES.map((cat, i) => (
-              <TouchableOpacity
-                key={i}
-                onPress={() => setQuery(cat.label)}
-                style={{
-                  backgroundColor: COLORS.card,
-                  borderRadius: 14,
-                  padding: 16,
-                  marginBottom: 10,
-                  borderWidth: 1,
-                  borderColor: COLORS.cardBorder,
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 22,
-                    backgroundColor: COLORS.accent,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginRight: 14,
-                    borderWidth: 1,
-                    borderColor: COLORS.cardBorder,
-                  }}
-                >
-                  <cat.icon color={COLORS.gold} size={20} strokeWidth={1.5} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: "CrimsonPro_700Bold",
-                      fontSize: 16,
-                      color: COLORS.white,
-                    }}
-                  >
-                    {cat.label}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "CrimsonPro_400Regular",
-                      fontSize: 12,
-                      color: COLORS.muted,
-                    }}
-                  >
-                    {cat.count} books
-                  </Text>
-                </View>
-                <View
-                  style={{
-                    backgroundColor: COLORS.accent,
-                    paddingHorizontal: 10,
-                    paddingVertical: 4,
-                    borderRadius: 10,
-                  }}
-                >
-                  <Text
-                    style={{
-                      color: COLORS.gold,
-                      fontSize: 12,
-                      fontFamily: "CrimsonPro_700Bold",
-                    }}
-                  >
-                    Explore
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            ))}
-
-            {/* Popular picks */}
-            <Text
-              style={{
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 18,
-                color: COLORS.white,
-                marginTop: 8,
-                marginBottom: 14,
-              }}
-            >
-              Popular Picks
-            </Text>
-            {allBooks.slice(0, 4).map((book) => (
-              <TouchableOpacity
-                key={book._id}
-                onPress={() => router.push(`/book/${book._id}`)}
-                activeOpacity={0.8}
-                style={{
-                  backgroundColor: COLORS.card,
-                  borderRadius: 14,
-                  padding: 14,
-                  marginBottom: 10,
-                  borderWidth: 1,
-                  borderColor: COLORS.cardBorder,
-                  flexDirection: "row",
-                  alignItems: "center",
-                }}
-              >
-                {(() => {
-                  const coverSrc = getImageUrl(book.coverUrl);
-                  if (coverSrc) return <Image source={{ uri: coverSrc }} style={{ width: 48, height: 64, borderRadius: 8, marginRight: 14 }} resizeMode="cover" />;
-                  return (
-                <LinearGradient
-                  colors={["#2A2B5A", "#1A1B3A"]}
-                  style={{
-                    width: 48,
-                    height: 64,
-                    borderRadius: 8,
-                    justifyContent: "center",
-                    alignItems: "center",
-                    marginRight: 14,
-                  }}
-                >
-                  {React.createElement(ICON_MAP[book.iconName] || BookOpen, { color: COLORS.gold, size: 20, strokeWidth: 1.5 })}
-                </LinearGradient>
-                  );
-                })()}
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: "CrimsonPro_700Bold",
-                      fontSize: 15,
-                      color: COLORS.white,
-                    }}
-                  >
-                    {book.title}
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: "CrimsonPro_400Regular",
-                      fontSize: 12,
-                      color: COLORS.gold,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {book.titleAm}
-                  </Text>
-                  <View
-                    style={{
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    <Star color={COLORS.gold} size={10} fill={COLORS.gold} />
-                    <Text
-                      style={{
-                        color: COLORS.gold,
-                        fontSize: 11,
-                        fontFamily: "CrimsonPro_400Regular",
-                      }}
-                    >
-                      {book.rating}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </>
-        )}
+        ) : null}
       </ScrollView>
 
     </View>

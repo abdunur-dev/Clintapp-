@@ -12,7 +12,7 @@ import {
 import { Bookmark, Copy, Share2, PenLine, Headphones } from 'lucide-react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS } from '../theme/theme';
 import { useReaderStore } from '../stores/readerStore';
-import { LANGUAGES, getVerseText, getAvailableLangs } from '../data/sacred-texts';
+import { LANGUAGES, getAvailableLangs } from '../data/sacred-texts';
 import { api } from '../services/api';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -64,7 +64,7 @@ export default function TranslationPanel({
       const v = propVerses.find(v => v.number === selectedVerse);
       return v ? v[langId] || '' : '';
     }
-    return getVerseText(bookId, chapterNumber, selectedVerse, langId);
+    return '';
   };
   const verseText = getText(panelLang);
   const leftText = getText(leftLang);

@@ -141,7 +141,7 @@ export default function BookDetailScreen() {
     });
     Alert.alert("Added to Cart", "Go to cart to complete your purchase", [
       { text: "Stay", style: "cancel" },
-      { text: "View Cart", onPress: () => router.push("/cart") },
+      { text: "View Cart", onPress: () => router.push("/(tabs)/cart") },
     ]);
   }, [book, id, addItem, router]);
 
@@ -175,8 +175,6 @@ export default function BookDetailScreen() {
     });
     Alert.alert(isBookmarked ? "Removed" : "Bookmarked", isBookmarked ? "Bookmark removed" : "Added to your bookmarks");
   }, [book, id, isBookmarked, toggleBookmark]);
-
-  if (!fontsLoaded) return null;
 
   if (loading) {
     return (
@@ -276,7 +274,7 @@ export default function BookDetailScreen() {
             />
           </View>
           </ScaleButton>
-          <CartButton onPress={() => router.push("/cart")} />
+          <CartButton onPress={() => router.push("/(tabs)/cart")} />
         </View>
       </View>
       </FadeInView>
@@ -394,23 +392,6 @@ export default function BookDetailScreen() {
               borderColor: COLORS.cardBorder,
             }}
           >
-            <Star color={COLORS.gold} size={14} fill={COLORS.gold} />
-            <Text
-              style={{
-                color: COLORS.gold,
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 13,
-              }}
-            >
-              {book.rating}
-            </Text>
-            <View
-              style={{
-                width: 1,
-                height: 12,
-                backgroundColor: COLORS.cardBorder,
-              }}
-            />
             <Text
               style={{
                 color: COLORS.muted,
@@ -455,262 +436,9 @@ export default function BookDetailScreen() {
         </View>
         </FadeInView>
 
-        {book.sacredType !== "hadith" && (
-          <FadeInView delay={500}>
-          <View
-            style={{
-              marginHorizontal: SPACING.xl,
-              marginBottom: SPACING.lg,
-            }}
-          >
-            <Text
-              style={{
-                fontFamily: "CrimsonPro_700Bold",
-                fontSize: 18,
-                color: COLORS.white,
-                marginBottom: SPACING.md,
-              }}
-            >
-              Reading Tools
-            </Text>
-            <View
-              style={{
-                flexDirection: "row",
-                gap: SPACING.md,
-                marginBottom: SPACING.md,
-              }}
-            >
-              <ScaleButton onPress={handleToggleFont} style={{ flex: 1 }}>
-              <View
-                style={{
-                  backgroundColor: COLORS.card,
-                  borderRadius: RADIUS.md,
-                  padding: SPACING.md,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: COLORS.cardBorder,
-                }}
-              >
-                <Type color={COLORS.gold} size={18} strokeWidth={1.5} />
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 10,
-                    marginTop: 4,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  Font
-                </Text>
-                <Text
-                  style={{
-                    color: COLORS.goldDim,
-                    fontSize: 8,
-                    marginTop: 1,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  {["S", "M", "L"][fontLevel]}
-                </Text>
-              </View>
-              </ScaleButton>
-              <ScaleButton onPress={handleToggleTheme} style={{ flex: 1 }}>
-              <View
-                style={{
-                  backgroundColor: COLORS.card,
-                  borderRadius: RADIUS.md,
-                  padding: SPACING.md,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: COLORS.cardBorder,
-                }}
-              >
-                {theme === 0 ? (
-                  <Sun color={COLORS.gold} size={18} strokeWidth={1.5} />
-                ) : (
-                  <MoonIcon color={COLORS.gold} size={18} strokeWidth={1.5} />
-                )}
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 10,
-                    marginTop: 4,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  Theme
-                </Text>
-                <Text
-                  style={{
-                    color: COLORS.goldDim,
-                    fontSize: 8,
-                    marginTop: 1,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  {["Dark", "Sepia", "Light"][theme]}
-                </Text>
-              </View>
-              </ScaleButton>
-              <ScaleButton onPress={handleToggleHighlight} style={{ flex: 1 }}>
-              <View
-                style={{
-                  backgroundColor: highlighted ? COLORS.gold + "22" : COLORS.card,
-                  borderRadius: RADIUS.md,
-                  padding: SPACING.md,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: highlighted ? COLORS.gold : COLORS.cardBorder,
-                }}
-              >
-                <Highlighter
-                  color={COLORS.gold}
-                  size={18}
-                  strokeWidth={1.5}
-                />
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 10,
-                    marginTop: 4,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  Highlight
-                </Text>
-                <Text
-                  style={{
-                    color: highlighted ? COLORS.gold : COLORS.goldDim,
-                    fontSize: 8,
-                    marginTop: 1,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  {highlighted ? "On" : "Off"}
-                </Text>
-              </View>
-              </ScaleButton>
-              <ScaleButton onPress={handleToggleBookmark} style={{ flex: 1 }}>
-              <View
-                style={{
-                  backgroundColor: isBookmarked ? COLORS.gold + "22" : COLORS.card,
-                  borderRadius: RADIUS.md,
-                  padding: SPACING.md,
-                  alignItems: "center",
-                  borderWidth: 1,
-                  borderColor: isBookmarked ? COLORS.gold : COLORS.cardBorder,
-                }}
-              >
-                <Bookmark
-                  color={COLORS.gold}
-                  size={18}
-                  strokeWidth={1.5}
-                  fill={isBookmarked ? COLORS.gold : "none"}
-                />
-                <Text
-                  style={{
-                    color: COLORS.muted,
-                    fontSize: 10,
-                    marginTop: 4,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  Bookmark
-                </Text>
-                <Text
-                  style={{
-                    color: isBookmarked ? COLORS.gold : COLORS.goldDim,
-                    fontSize: 8,
-                    marginTop: 1,
-                    fontFamily: "CrimsonPro_400Regular",
-                  }}
-                >
-                  {isBookmarked ? "Saved" : "Add"}
-                </Text>
-              </View>
-              </ScaleButton>
-            </View>
-          </View>
-          </FadeInView>
-        )}
 
-        {book.sacredType !== "hadith" && (
-        <FadeInView delay={600}>
-          <View
-            style={{
-              marginHorizontal: SPACING.xl,
-              padding: SPACING.lg,
-              backgroundColor: currentTheme.bg,
-              borderRadius: RADIUS.lg,
-              borderStyle: "dashed",
-              borderWidth: 1.5,
-              borderColor: highlighted ? COLORS.gold : COLORS.gold + "60",
-              marginBottom: SPACING.lg,
-            }}
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 10,
-              }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <MessageCircle color={COLORS.gold} size={14} />
-                <Text
-                  style={{
-                    color: COLORS.gold,
-                    fontFamily: "CrimsonPro_700Bold",
-                    fontSize: 13,
-                    marginLeft: 6,
-                  }}
-                >
-                  Preview
-                </Text>
-              </View>
-              {highlighted && (
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: 4,
-                    backgroundColor: COLORS.gold + "22",
-                    paddingHorizontal: 8,
-                    paddingVertical: 2,
-                    borderRadius: RADIUS.pill,
-                  }}
-                >
-                  <Check color={COLORS.gold} size={10} strokeWidth={2.5} />
-                  <Text
-                    style={{
-                      color: COLORS.gold,
-                      fontFamily: "CrimsonPro_700Bold",
-                      fontSize: 9,
-                    }}
-                  >
-                    Highlighted
-                  </Text>
-                </View>
-              )}
-            </View>
-            <Text
-              style={{
-                color: currentTheme.text,
-                fontFamily: "CrimsonPro_400Regular",
-                fontSize: fontSize,
-                lineHeight: fontSize * 1.6,
-                fontStyle: "italic",
-                backgroundColor: highlighted ? COLORS.gold + "18" : "transparent",
-                paddingHorizontal: highlighted ? 4 : 0,
-                borderRadius: 2,
-              }}
-            >
-              "{book.sample}"
-            </Text>
-          </View>
-        </FadeInView>
-        )}
+
+
       </ScrollView>
 
       {/* Bottom Action Bar */}
@@ -850,9 +578,9 @@ export default function BookDetailScreen() {
       {readerOpen && book && (
         <View style={StyleSheet.absoluteFill}>
           <ManuscriptReader
-            bookId={String(id === 1 ? 'quran' : id === 2 ? 'bible' : 'bible')}
-            hadithSlug={book.sacredType === "hadith" ? book.bookSlug : undefined}
-            hadithTitle={book.sacredType === "hadith" ? book.title : undefined}
+            bookId={book.sacredType || String(book._id)}
+            hadithSlug={book.bookSlug || undefined}
+            hadithTitle={book.bookSlug ? book.title : undefined}
             onBack={() => setReaderOpen(false)}
           />
         </View>

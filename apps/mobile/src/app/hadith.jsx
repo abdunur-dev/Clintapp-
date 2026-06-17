@@ -16,26 +16,10 @@ import { ArrowLeft, Search, Globe } from "lucide-react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { COLORS, SPACING, SHADOWS } from "../theme/theme";
 import { api } from "../services/api";
-import { LOCAL_HADITHS, LOCAL_BOOKS } from "../data/hadiths";
+
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const isSmall = SCREEN_WIDTH < 360;
-
-function filterLocal(hadiths, book, q) {
-  let result = hadiths;
-  if (book) result = result.filter((h) => h.book === book);
-  if (q) {
-    const lower = q.toLowerCase();
-    result = result.filter(
-      (h) =>
-        String(h.hadithNumber).includes(q) ||
-        h.book?.toLowerCase().includes(lower) ||
-        h.chapter?.toLowerCase().includes(lower) ||
-        h.narrator?.toLowerCase().includes(lower)
-    );
-  }
-  return result;
-}
 
 function HadithCard({ hadith, onTranslate, translating }) {
   return (
@@ -107,21 +91,24 @@ function HadithCard({ hadith, onTranslate, translating }) {
 export default function HadithScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const [hadiths, setHadiths] = useState(() => filterLocal(LOCAL_HADITHS, "", ""));
+  const [hadiths, setHadiths] = useState([]);
   const [search, setSearch] = useState("");
   const [bookFilter, setBookFilter] = useState("");
-  const [books, setBooks] = useState(LOCAL_BOOKS);
+  const [books, setBooks] = useState([]);
   const [translatingId, setTranslatingId] = useState(null);
+
+  useEffect(() => {
+    api.getHadiths({}).then((res) => {
+      if (res.hadiths?.length) setHadiths(res.hadiths);
+    }).catch(() => {});
+    api.getBooks().then(setBooks).catch(() => {});
+  }, []);
 
   const load = (book, q) => {
     api.getHadiths({ book, search: q }).then((res) => {
       if (res.hadiths?.length) setHadiths(res.hadiths);
-    }).catch(() => {
-      setHadiths(filterLocal(LOCAL_HADITHS, book, q));
-    });
+    }).catch(() => {});
   };
-
-  useEffect(() => { load("", ""); }, []);
 
   const timerRef = useRef(null);
   const handleSearch = (text) => {
@@ -213,14 +200,14 @@ export default function HadithScreen() {
               All
             </Text>
           </TouchableOpacity>
-          {books.map((b) => (
+          {books.filter(b => b.sacredType === "hadith").map((b) => (
             <TouchableOpacity
-              key={b}
-              onPress={() => handleBookFilter(b)}
-              style={[s.chip, bookFilter === b && s.chipActive]}
+              key={b.title || b._id}
+              onPress={() => handleBookFilter(b.title || b._id)}
+              style={[s.chip, bookFilter === (b.title || b._id) && s.chipActive]}
             >
-              <Text style={[s.chipText, bookFilter === b && s.chipTextActive]}>
-                {b}
+              <Text style={[s.chipText, bookFilter === (b.title || b._id) && s.chipTextActive]}>
+                {b.title}
               </Text>
             </TouchableOpacity>
           ))}

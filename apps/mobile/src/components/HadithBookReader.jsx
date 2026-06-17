@@ -12,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS, SPACING, SHADOWS } from '../theme/theme';
 import { OrnamentalBorder } from './ParchmentPage';
 import { api } from '../services/api';
-import { LOCAL_HADITHS } from '../data/hadiths';
+
 
 export default function HadithBookReader({ bookSlug, bookTitle, onBack }) {
   const insets = useSafeAreaInsets();
@@ -25,9 +25,9 @@ export default function HadithBookReader({ bookSlug, bookTitle, onBack }) {
   useEffect(() => {
     setLoading(true);
     api.getHadiths({ book: bookSlug }).then((res) => {
-      if (res.hadiths?.length) setHadiths(res.hadiths);
+      setHadiths(res.hadiths || []);
     }).catch(() => {
-      setHadiths(LOCAL_HADITHS.filter((h) => h.book === bookSlug));
+      setHadiths([]);
     }).finally(() => setLoading(false));
   }, [bookSlug]);
 
