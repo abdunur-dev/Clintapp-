@@ -9,8 +9,7 @@
 			"distribution": "internal"
 		},
 		"preview": {
-			"distribution": "internal",
-			"installCommand": "npm install"
+			"distribution": "internal"
 		},
 		"production": {
 			"autoIncrement": true,
