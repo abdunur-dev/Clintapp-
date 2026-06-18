@@ -70,11 +70,8 @@
       "router": {
         "origin": false,
         "sitemap": false
-      },
-      "eas": {
-        "projectId": "6f5d4dcd-3064-4281-8b7c-73315412086d"
       }
     },
-    "owner": "abdunur_dev"
+    "owner": "burhanops"
   }
 }
