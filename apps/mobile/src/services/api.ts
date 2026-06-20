@@ -1,12 +1,14 @@
 import { Platform } from 'react-native';
+import localDb from '../db.json';
 
 const DEV_API = process.env.EXPO_PUBLIC_API_URL
   || (Platform.OS === 'android' ? 'http://10.0.2.2:4000/api' : 'http://localhost:4000/api');
 
-const API_BASE = __DEV__ ? DEV_API : 'https://your-production-api.com/api';
+const API_BASE = __DEV__ ? DEV_API : 'https://clintapp-backend.vercel.app/api';
 
 export interface Book {
   _id: string;
+  id?: string;
   title: string;
   titleAm?: string;
   author: string;
@@ -70,6 +72,29 @@ export interface BookmarkData {
 
 const IMAGE_BASE = API_BASE.replace(/\/api\/?$/, "");
 
+const localBooks: Book[] = (localDb.books || []).map((book: any) => ({
+  ...book,
+  _id: String(book._id || book.id),
+  color: book.color || book.coverColor || "#2A2B5A",
+  coverColor: book.coverColor || book.color,
+  sacredType: book.sacredType ?? null,
+}));
+
+function matchesCategory(book: Book, category?: string) {
+  return !category || book.category?.toLowerCase() === category.toLowerCase();
+}
+
+async function withLocalBooksFallback<T>(request: Promise<T>, fallback: () => T): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    if (__DEV__) {
+      console.warn('API unavailable, using bundled book data instead.', error);
+    }
+    return fallback();
+  }
+}
+
 export function getImageUrl(path) {
   if (!path) return null;
   if (path.startsWith("http")) return path;
@@ -121,9 +146,20 @@ export const api = {
 
   // Books
   getBooks: (category?: string) =>
-    api.get<Book[]>(`/books${category ? `?category=${category}` : ''}`),
-  getBook: (id: string) => api.get<Book>(`/books/${id}`),
-  getSacredBooks: () => api.get<Book[]>('/books/sacred'),
+    withLocalBooksFallback(
+      api.get<Book[]>(`/books${category ? `?category=${category}` : ''}`),
+      () => localBooks.filter((book) => matchesCategory(book, category))
+    ),
+  getBook: (id: string) =>
+    withLocalBooksFallback(
+      api.get<Book>(`/books/${id}`),
+      () => localBooks.find((book) => book._id === String(id) || book.id === String(id)) || localBooks[0]
+    ),
+  getSacredBooks: () =>
+    withLocalBooksFallback(
+      api.get<Book[]>('/books/sacred'),
+      () => localBooks.filter((book) => book.isSacred)
+    ),
 
   // Cart
   getCart: () => api.get<{ items: CartItemData[]; count: number; total: number }>('/cart'),

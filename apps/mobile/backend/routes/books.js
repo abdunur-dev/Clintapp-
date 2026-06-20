@@ -25,7 +25,9 @@ const router = Router();
 
 router.get("/", async (req, res) => {
   try {
-    const books = await Book.find().sort({ createdAt: -1 });
+    const { category } = req.query;
+    const filter = category ? { category: new RegExp("^" + category + "$", "i") } : {};
+    const books = await Book.find(filter).sort({ createdAt: -1 });
     res.json(books);
   } catch (err) {
     res.status(500).json({ error: err.message });

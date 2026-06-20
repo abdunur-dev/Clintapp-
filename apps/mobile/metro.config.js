@@ -2,6 +2,53 @@ const { getDefaultConfig } = require('expo/metro-config');
 const path = require('node:path');
 const fs = require('node:fs');
 const { FileStore } = require('metro-cache');
+const { spawn } = require('node:child_process');
+const os = require('node:os');
+
+// Helper to get LAN IP
+function getLanIp() {
+  const interfaces = os.networkInterfaces();
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries || []) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        return entry.address;
+      }
+    }
+  }
+  return null;
+}
+
+// Automatically start backend server
+if (process.env.NODE_ENV !== 'production' && !global.__backendStarted) {
+  global.__backendStarted = true;
+  const lanIp = getLanIp();
+  if (lanIp && !process.env.EXPO_PUBLIC_API_URL) {
+    process.env.EXPO_PUBLIC_API_URL = `http://${lanIp}:4000/api`;
+    console.log(`[Metro Config] Broadcasted API URL: ${process.env.EXPO_PUBLIC_API_URL}`);
+  }
+
+  const backendPath = path.join(__dirname, "backend");
+  if (fs.existsSync(backendPath)) {
+    console.log(`[Metro Config] Starting backend server automatically in ${backendPath}...`);
+    const backendProcess = spawn(process.execPath, [path.join(backendPath, "server.js")], {
+      cwd: backendPath,
+      stdio: "inherit",
+      env: { ...process.env, PORT: "4000" }
+    });
+
+    backendProcess.on("error", (err) => {
+      console.error("[Metro Config] Failed to start backend server:", err);
+    });
+
+    process.on("exit", () => {
+      backendProcess.kill();
+    });
+    process.on("SIGINT", () => {
+      backendProcess.kill();
+      process.exit(0);
+    });
+  }
+}
 
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);

@@ -188,13 +188,21 @@ async function seed() {
     await mongoose.connect(MONGODB_URI);
     console.log("Connected to MongoDB");
 
-    await Book.deleteMany({});
-    const createdBooks = await Book.insertMany(books);
-    console.log(`Seeded ${createdBooks.length} books`);
+    const bookCount = await Book.countDocuments();
+    if (bookCount === 0) {
+      const createdBooks = await Book.insertMany(books);
+      console.log(`Seeded ${createdBooks.length} books`);
+    } else {
+      console.log(`Skipping books seed — ${bookCount} books already exist`);
+    }
 
-    await Hadith.deleteMany({});
-    const createdHadiths = await Hadith.insertMany(hadiths);
-    console.log(`Seeded ${createdHadiths.length} hadiths`);
+    const hadithCount = await Hadith.countDocuments();
+    if (hadithCount === 0) {
+      const createdHadiths = await Hadith.insertMany(hadiths);
+      console.log(`Seeded ${createdHadiths.length} hadiths`);
+    } else {
+      console.log(`Skipping hadiths seed — ${hadithCount} hadiths already exist`);
+    }
 
     await mongoose.disconnect();
     console.log("Done");
