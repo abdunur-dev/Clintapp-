@@ -3,6 +3,9 @@
   "main": "index",
   "version": "1.0.0",
   "scripts": {
+    "start": "node scripts/start-expo.cjs",
+    "web": "node scripts/start-expo.cjs --web",
+    "web:clear": "node scripts/start-expo.cjs --web --clear",
     "postinstall": "patch-package",
     "android": "expo run:android",
     "ios": "expo run:ios"

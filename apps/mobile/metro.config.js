@@ -88,6 +88,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 };
 
 const cacheDir = path.join(__dirname, 'caches');
+fs.mkdirSync(path.join(cacheDir, '.metro-cache'), { recursive: true });
 
 config.cacheStores = () => [
   new FileStore({
