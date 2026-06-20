@@ -71,6 +71,9 @@
       "router": {
         "origin": false,
         "sitemap": false
+      },
+      "eas": {
+        "projectId": "a30bbbdb-bcfd-4032-903d-ee78adf0d191"
       }
     },
     "owner": "burhanops"
