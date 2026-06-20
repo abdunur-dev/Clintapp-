@@ -19,7 +19,8 @@ function getLanIp() {
 }
 
 // Automatically start backend server
-if (process.env.NODE_ENV !== 'production' && !global.__backendStarted) {
+const isEas = process.env.EAS_BUILD === 'true' || process.argv.some(arg => arg.includes('eas') || arg.includes('build'));
+if (process.env.NODE_ENV !== 'production' && !isEas && !global.__backendStarted) {
   global.__backendStarted = true;
   const lanIp = getLanIp();
   if (lanIp && !process.env.EXPO_PUBLIC_API_URL) {
